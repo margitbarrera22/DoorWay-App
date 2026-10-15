@@ -4,9 +4,21 @@
 - **Objetivo (sí o no):** «La lista de estado de cuenta y recibos de pago (HU-03) funciona en un teléfono Android con sus cuatro situaciones y su vista de detalle en React Native, y sus criterios de aceptación están escritos».
 - **Historia técnica:** HU-03 (#3) · **Otra Must:** HU-02 (#2).
 
-## 1. Persona y mapa de hoy
 
-<!-- MARGIT: Pega aquí arriba los 5 datos de Doña Martha y la tabla de los 4 momentos -->
+## 1. Persona y mapa de hoy
+- **Contexto:** Gloria Ramírez, 58 años, propietaria del Apto 402 Torre 2 en Barrancabermeja.
+- **Teléfono y conexión:** Samsung A12, 3 GB de RAM. Conexión inestable en el parqueadero.
+- **Quiere lograr:** Verificar en menos de 2 minutos si su pago de administración ya fue aplicado.
+- **La frena:** La incertidumbre de que le cobren intereses de mora si el pago no se refleja a tiempo.
+- **Una frase suya:** "Yo pagué, pero aquí no me aparece; necesito ver algo que me diga que ya quedó".
+
+| | Momento 1: Paga en banco | Momento 2: Espera confirmación | Momento 3: Consulta en app | Momento 4: Necesita probar que está al día |
+|---|---|---|---|---|
+| **Hace** | Guarda el comprobante en WhatsApp | Pregunta a la administradora por chat | Abre la app DoorWay | Muestra el recibo al administrador |
+| **Se frustra** | Pierde el comprobante en el chat | Nadie responde durante días | La app no carga o es confusa | Le dicen que tiene mora cuando ya pagó |
+| **Historia** | HU-01 (Cámara) | HU-04 (Conciliación) | HU-03 (Consulta recibos) | HU-02 (Bloqueo por mora) |
+
+**Cambio en el backlog:** La HU-03 originalmente era solo "consultar saldo". El mapa mostró que la ansiedad no es el valor, sino no saber si se aplicó. Se modifica la HU-03 para exigir un **estado visible por recibo** (Pagado / Pendiente / Con mora).
 
 **Cambio en el backlog:** Al identificar en el mapa de experiencia que el residente envía la foto del voucher por WhatsApp y pasa días sin saber si el administrador ya lo revisó o si sigue en mora, se modificó la historia HU-03 en el backlog para agregar explícitamente el estado de conciliación del recibo («Pagado», «En validación», «En mora») y la referencia bancaria tanto en la lista como en la vista de detalle.
 
@@ -50,11 +62,16 @@ Escenario: Intento de reserva desde el celular cuando se pierde la conexión de 
   Entonces veo un mensaje indicando que se requiere conexión en línea para verificar cartera y disponibilidad junto al botón «Reintentar»
 ```
 
-**Revisó:** <!-- MARGIT: Escribe tu nombre aquí después de revisar -->
+   **Revisó:** Margit Dayanna Barrera Gutiérrez
 
 ## 3. MVP y calidad
 
-<!-- MARGIT: Pega aquí la tabla del MVP, los 2 requisitos de calidad con número y el hallazgo de Nielsen -->
+
+| Paso del usuario | Historia del MVP |
+|---|---|
+| 1. Entra a "Cartera" desde la aplicación | HU-03 |
+| 2. Consulta la lista de sus recibos con periodo, valor y estado | HU-03 |
+| 3. Toca un recibo y consulta su detalle | HU-03 |
 
 ## 4. Plan con usuarios
 
@@ -76,4 +93,9 @@ Escenario: Intento de reserva desde el celular cuando se pierde la conexión de 
 
 ## 6. Quién hizo qué
 
-<!-- MARGIT: Pega aquí la tabla final con los enlaces de los 4 integrantes -->
+| Integrante | Rol oficial | Frente | Enlaces |
+|---|---|---|---|
+| Michel Daniela Bayona Díaz | PO (fijo) + Developer | A | `docs/examen-sprint1.md` · validación de criterios · issue INV-02 |
+| Margit Dayanna Barrera Gutiérrez | Scrum Master Hito 1 + Developer | A | Revisión del PR · mapa de hoy · plan de entrevistas |
+| Wilfran Leonardo Betancourt Ardila | Developer + Scrum Master Hito 2 | B | `src/domain/Recibo.ts` · `src/data/repositorioSimulado.ts` · `src/hooks/useRecibos.ts` |
+| Said Alexander Pacheco Moncada | Developer + Scrum Master Hito 3 | B | `src/screens/MisRecibosScreen.tsx` · `src/screens/DetalleReciboScreen.tsx` · `App.tsx` · PR · 4 capturas |
