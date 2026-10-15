@@ -87,7 +87,7 @@ Escenario: Intento de reserva desde el celular cuando se pierde la conexión de 
 
 ## 5. Prueba técnica y demo
 
-- **Pull request:** #[Número del PR] (examen/sprint1-tecnico -> main) · **Revisó:** Margit Dayanna Barrera Gutiérrez · **Dispositivo:** Teléfono Android físico
+- **Pull request:** #19 (examen/sprint1-tecnico -> main) · **Revisó:** Margit Dayanna Barrera Gutiérrez · **Dispositivo:** Teléfono Android físico
 
 | Ejemplo | ¿Cumple? | Por qué |
 |---|---|---|
