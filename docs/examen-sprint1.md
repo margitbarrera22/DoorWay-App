@@ -95,3 +95,9 @@ Escenario: Intento de reserva desde el celular cuando se pierde la conexión de 
 | Escenario 2 (Error y reintentar) | Sí | Al elegir el escenario de falla en el menú debug (__DEV__) muestra el mensaje claro en español y el botón «Reintentar» vuelve a invocar cargar(). |
 | Escenario 3 (Lista vacía en celular) | No del todo | Muestra el mensaje de lista vacía y el botón «Subir comprobante»; al pulsarlo informa que la captura con cámara (HU-01) se conectará en el Sprint 2. |
 
+| Integrante | Rol oficial | Frente | Enlaces |
+|---|---|---|---|
+| Michel Daniela Bayona Díaz | PO (fijo) + Developer | A | `docs/examen-sprint1.md` · validación de criterios · issue INV-02 |
+| Margit Dayanna Barrera Gutiérrez | Scrum Master Hito 1 + Developer | A | Revisión del PR · mapa de hoy · plan de entrevistas |
+| Wilfran Leonardo Betancourt Ardila | Developer + Scrum Master Hito 2 | B | `src/domain/Recibo.ts` · `src/data/repositorioSimulado.ts` · `src/hooks/useRecibos.ts` |
+| Said Alexander Pacheco Moncada | Developer + Scrum Master Hito 3 | B | `src/screens/MisRecibosScreen.tsx` · `src/screens/DetalleReciboScreen.tsx` · `App.tsx` · PR · 4 capturas |
