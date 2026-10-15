@@ -71,7 +71,7 @@ Escenario: Intento de reserva desde el celular cuando se pierde la conexión de 
   Entonces veo un mensaje indicando que se requiere conexión en línea para verificar cartera y disponibilidad junto al botón «Reintentar»
 ```
 
-**Revisó:** <!-- MARGIT: Escribe tu nombre aquí después de revisar -->
+   **Revisó:** Margit Dayanna Barrera Gutiérrez
 
 ## 3. MVP y calidad
 
