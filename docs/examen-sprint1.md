@@ -6,9 +6,30 @@
 
 ## 1. Persona y mapa de hoy
 
-<!-- MARGIT: Pega aquí arriba los 5 datos de Doña Martha y la tabla de los 4 momentos -->
+- **Contexto:** Gloria Ramírez, 58 años, propietaria del Apto 402 Torre 2 de un
+  conjunto residencial en Barrancabermeja. Trabaja por turnos y no puede acudir
+  a la oficina de administración en horario de atención.
+- **Teléfono y conexión:** Samsung A12, 3 GB de RAM, Android 12. Conexión móvil
+  inestable en el parqueadero subterráneo y en el ascensor.
+- **Quiere lograr:** confirmar en menos de 2 minutos que su pago de
+  administración quedó aplicado y tener el recibo a la mano.
+- **La frena:** no sabe si el comprobante que envió por WhatsApp ya fue
+  conciliado. Teme que le cobren intereses de mora o le bloqueen una reserva
+  estando al día.
+- **Una frase suya:** «Yo pagué, pero aquí no me aparece; necesito ver algo que
+  me diga que ya quedó».
 
-**Cambio en el backlog:** Al identificar en el mapa de experiencia que el residente envía la foto del voucher por WhatsApp y pasa días sin saber si el administrador ya lo revisó o si sigue en mora, se modificó la historia HU-03 en el backlog para agregar explícitamente el estado de conciliación del recibo («Pagado», «En validación», «En mora») y la referencia bancaria tanto en la lista como en la vista de detalle.
+| | Momento 1: Paga en el banco | Momento 2: Espera confirmación | Momento 3: Consulta su saldo | Momento 4: Necesita probar que está al día |
+|---|---|---|---|---|
+| **Hace** | Transfiere y guarda el comprobante en el chat de WhatsApp | Pregunta a la administradora por el mismo chat | Pide el estado de cuenta por mensaje o llama por teléfono | Pide el salón social por chat para una reunión familiar |
+| **Se frustra** | El archivo se pierde entre cientos de mensajes del conjunto | Nadie le responde durante días y no hay trazabilidad | Recibe un PDF o un Excel que no distingue pago aplicado de pendiente | Le dicen que tiene mora cuando ya pagó; se genera un conflicto |
+| **Historia** | HU-01 · Subida de comprobante | HU-04 · Aprobación de comprobantes | HU-03 · Consulta de recibos | HU-02 · Bloqueo de reserva por mora |
+
+**Cambio en el backlog:**
+La HU-03 originalmente hablaba solo de «consultar el saldo». El mapa mostró que
+lo que genera ansiedad no es el valor, sino **no saber si el pago ya se aplicó**.
+Se modifica la HU-03 para exigir un **estado visible por recibo**
+(Pagado / Pendiente / Con mora) y la **fecha de aplicación**.
 
 ## 2. Criterios (tres por historia: éxito, error, celular)
 
@@ -54,7 +75,7 @@ Escenario: Intento de reserva desde el celular cuando se pierde la conexión de 
 
 ## 3. MVP y calidad
 
-<!-- MARGIT: Pega aquí la tabla del MVP, los 2 requisitos de calidad con número y el hallazgo de Nielsen -->
+
 
 ## 4. Plan con usuarios
 
@@ -74,6 +95,3 @@ Escenario: Intento de reserva desde el celular cuando se pierde la conexión de 
 | Escenario 2 (Error y reintentar) | Sí | Al elegir el escenario de falla en el menú debug (__DEV__) muestra el mensaje claro en español y el botón «Reintentar» vuelve a invocar cargar(). |
 | Escenario 3 (Lista vacía en celular) | No del todo | Muestra el mensaje de lista vacía y el botón «Subir comprobante»; al pulsarlo informa que la captura con cámara (HU-01) se conectará en el Sprint 2. |
 
-## 6. Quién hizo qué
-
-<!-- MARGIT: Pega aquí la tabla final con los enlaces de los 4 integrantes -->
