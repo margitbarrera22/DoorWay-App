@@ -4,8 +4,23 @@
 - **Objetivo (sí o no):** «La lista de estado de cuenta y recibos de pago (HU-03) funciona en un teléfono Android con sus cuatro situaciones y su vista de detalle en React Native, y sus criterios de aceptación están escritos».
 - **Historia técnica:** HU-03 (#3) · **Otra Must:** HU-02 (#2).
 
-## 1. Persona y mapa de hoy
 
+## 1. Persona y mapa de hoy
+- **Contexto:** Gloria Ramírez, 58 años, propietaria del Apto 402 Torre 2 en Barrancabermeja.
+- **Teléfono y conexión:** Samsung A12, 3 GB de RAM. Conexión inestable en el parqueadero.
+- **Quiere lograr:** Verificar en menos de 2 minutos si su pago de administración ya fue aplicado.
+- **La frena:** La incertidumbre de que le cobren intereses de mora si el pago no se refleja a tiempo.
+- **Una frase suya:** "Yo pagué, pero aquí no me aparece; necesito ver algo que me diga que ya quedó".
+
+| | Momento 1: Paga en banco | Momento 2: Espera confirmación | Momento 3: Consulta en app | Momento 4: Necesita probar que está al día |
+|---|---|---|---|---|
+| **Hace** | Guarda el comprobante en WhatsApp | Pregunta a la administradora por chat | Abre la app DoorWay | Muestra el recibo al administrador |
+| **Se frustra** | Pierde el comprobante en el chat | Nadie responde durante días | La app no carga o es confusa | Le dicen que tiene mora cuando ya pagó |
+| **Historia** | HU-01 (Cámara) | HU-04 (Conciliación) | HU-03 (Consulta recibos) | HU-02 (Bloqueo por mora) |
+
+**Cambio en el backlog:** La HU-03 originalmente era solo "consultar saldo". El mapa mostró que la ansiedad no es el valor, sino no saber si se aplicó. Se modifica la HU-03 para exigir un **estado visible por recibo** (Pagado / Pendiente / Con mora).
+
+**Cambio en el backlog:** Al identificar en el mapa de experiencia que el residente envía la foto del voucher por WhatsApp y pasa días sin saber si el administrador ya lo revisó o si sigue en mora, se modificó la historia HU-03 en el backlog para agregar explícitamente el estado de conciliación del recibo («Pagado», «En validación», «En mora») y la referencia bancaria tanto en la lista como en la vista de detalle.
 - **Contexto:** Gloria Ramírez, 58 años, propietaria del Apto 402 Torre 2 de un
   conjunto residencial en Barrancabermeja. Trabaja por turnos y no puede acudir
   a la oficina de administración en horario de atención.
@@ -76,6 +91,11 @@ Escenario: Intento de reserva desde el celular cuando se pierde la conexión de 
 ## 3. MVP y calidad
 
 
+| Paso del usuario | Historia del MVP |
+|---|---|
+| 1. Entra a "Cartera" desde la aplicación | HU-03 |
+| 2. Consulta la lista de sus recibos con periodo, valor y estado | HU-03 |
+| 3. Toca un recibo y consulta su detalle | HU-03 |
 
 ## 4. Plan con usuarios
 
@@ -94,6 +114,8 @@ Escenario: Intento de reserva desde el celular cuando se pierde la conexión de 
 | Escenario 1 (Con datos y detalle) | Sí | Muestra los 5 recibos de prueba tras 1,5 s y al tocar una fila abre su detalle por :id con Expo Router y regresa con «atrás». |
 | Escenario 2 (Error y reintentar) | Sí | Al elegir el escenario de falla en el menú debug (__DEV__) muestra el mensaje claro en español y el botón «Reintentar» vuelve a invocar cargar(). |
 | Escenario 3 (Lista vacía en celular) | No del todo | Muestra el mensaje de lista vacía y el botón «Subir comprobante»; al pulsarlo informa que la captura con cámara (HU-01) se conectará en el Sprint 2. |
+
+## 6. Quién hizo qué
 
 | Integrante | Rol oficial | Frente | Enlaces |
 |---|---|---|---|
