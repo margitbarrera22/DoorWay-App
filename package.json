@@ -1,4 +1,10 @@
 {
+<<<<<<< HEAD
+  "dependencies": {
+    "expo-image-manipulator": "^58.0.16",
+    "expo-image-picker": "^58.0.10"
+  }
+=======
   "name": "doorwayapp",
   "version": "1.0.0",
   "main": "expo-router/entry",
@@ -28,4 +34,5 @@
     "web": "expo start --web"
   },
   "private": true
+>>>>>>> d65bcca38a9cb5cf7333f86dfac52a53eeb6ee67
 }
