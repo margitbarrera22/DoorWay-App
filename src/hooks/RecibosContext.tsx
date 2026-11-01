@@ -1,33 +1,64 @@
 // src/hooks/RecibosContext.tsx — Autor: Wilfran Leonardo Betancourt Ardila (HU-03 y HU-04)
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useRef, useEffect } from 'react';
+import { Recibo, EstadoRecibo } from '../domain/modelos';
+import { IRecibosRepository } from '../data/contratos';
+import { DbLocalSqliteRepository } from '../data/dbLocalSqlite';
 
 export type EstadoVista = 'cargando' | 'vacio' | 'error' | 'conDatos';
 
-interface ContextoRecibosType {
-  recibos: any[];
+export interface ContextoRecibosType {
+  recibos: Recibo[];
   estadoVista: EstadoVista;
   mensajeError: string;
   modoAdmin: boolean;
   alternarModoAdmin: () => void;
   cargar: () => Promise<void>;
-  conciliar: (id: string, estado: any, obs?: string) => Promise<void>;
+  conciliar: (id: string, estado: EstadoRecibo, obs?: string) => Promise<void>;
 }
 
 const RecibosContext = createContext<ContextoRecibosType | null>(null);
+const repositorioPorDefecto: IRecibosRepository = new DbLocalSqliteRepository();
 
-export function RecibosProvider({ children }: { children: React.ReactNode }) {
-  const [recibos, setRecibos] = useState<any[]>([]);
+export interface RecibosProviderProps {
+  children: React.ReactNode;
+  repositorio?: IRecibosRepository;
+}
+
+export function RecibosProvider({ children, repositorio = repositorioPorDefecto }: RecibosProviderProps) {
+  const [recibos, setRecibos] = useState<Recibo[]>([]);
   const [estadoVista, setEstadoVista] = useState<EstadoVista>('cargando');
   const [mensajeError, setMensajeError] = useState('');
   const [modoAdmin, setModoAdmin] = useState(false);
+  const peticionEnCurso = useRef(false);
 
   async function cargar() {
-    // Se completará en Día 2 con RepositorioRecibos
+    if (peticionEnCurso.current) return;
+    peticionEnCurso.current = true;
+    setEstadoVista('cargando');
+    try {
+      const lista = await repositorio.obtenerTodos();
+      setRecibos(lista);
+      setEstadoVista(lista.length === 0 ? 'vacio' : 'conDatos');
+    } catch (e: any) {
+      setMensajeError(e?.message || 'No pudimos leer tus recibos de administración');
+      setEstadoVista('error');
+    } finally {
+      peticionEnCurso.current = false;
+    }
   }
 
-  async function conciliar(id: string, nuevoEstado: any, obs?: string) {
-    // Se completará en Día 2 con RepositorioRecibos
+  async function conciliar(id: string, nuevoEstado: EstadoRecibo, obs?: string) {
+    try {
+      await repositorio.conciliarReciboAdmin(id, nuevoEstado, obs);
+      await cargar();
+    } catch (e: any) {
+      setMensajeError(e?.message || 'Error al conciliar el recibo');
+    }
   }
+
+  useEffect(() => {
+    cargar();
+  }, []);
 
   return (
     <RecibosContext.Provider

@@ -1,6 +1,6 @@
 // src/data/dbLocalSqlite.ts — Autora: Michel Daniela Bayona Díaz
 import * as SQLite from 'expo-sqlite';
-import { Recibo, EstadoRecibo } from '../domain/modelos';
+import { Recibo, EstadoRecibo, RECIBOS_SEMILLA } from '../domain/modelos';
 import { IRecibosRepository } from './contratos';
 
 export class DbLocalSqliteRepository implements IRecibosRepository {
@@ -33,13 +33,23 @@ export class DbLocalSqliteRepository implements IRecibosRepository {
 
     async obtenerTodos(): Promise<Recibo[]> {
         if (!this.db) await this.inicializarBaseDatos();
-        const resultado = await this.db!.getAllAsync<Recibo>('SELECT * FROM recibos_local;');
+        if (!this.db) {
+            throw new Error('No se pudo conectar con la base de datos SQLite local');
+        }
+        let resultado = await this.db.getAllAsync<Recibo>('SELECT * FROM recibos_local ORDER BY fechaVencimiento DESC;');
+        if (resultado.length === 0) {
+            await this.insertarSemilla(RECIBOS_SEMILLA);
+            resultado = await this.db.getAllAsync<Recibo>('SELECT * FROM recibos_local ORDER BY fechaVencimiento DESC;');
+        }
         return resultado;
     }
 
     async obtenerPorId(id: string): Promise<Recibo | null> {
         if (!this.db) await this.inicializarBaseDatos();
-        const resultado = await this.db!.getFirstAsync<Recibo>(
+        if (!this.db) {
+            throw new Error('No se pudo conectar con la base de datos SQLite local');
+        }
+        const resultado = await this.db.getFirstAsync<Recibo>(
             'SELECT * FROM recibos_local WHERE id = ?;',
             [id]
         );
@@ -48,8 +58,11 @@ export class DbLocalSqliteRepository implements IRecibosRepository {
 
     async subirComprobante(idRecibo: string, referencia: string, uriFotoLocal: string): Promise<Recibo> {
         if (!this.db) await this.inicializarBaseDatos();
+        if (!this.db) {
+            throw new Error('No se pudo conectar con la base de datos SQLite local');
+        }
 
-        await this.db!.runAsync(
+        await this.db.runAsync(
             `UPDATE recibos_local SET estado = ?, referenciaBancaria = ?, comprobanteUrl = ? WHERE id = ?;`,
             ['En validación', referencia, uriFotoLocal, idRecibo]
         );
@@ -61,8 +74,11 @@ export class DbLocalSqliteRepository implements IRecibosRepository {
 
     async conciliarReciboAdmin(idRecibo: string, nuevoEstado: EstadoRecibo, observacion?: string): Promise<Recibo> {
         if (!this.db) await this.inicializarBaseDatos();
+        if (!this.db) {
+            throw new Error('No se pudo conectar con la base de datos SQLite local');
+        }
 
-        await this.db!.runAsync(
+        await this.db.runAsync(
             `UPDATE recibos_local SET estado = ?, observacionAdmin = ? WHERE id = ?;`,
             [nuevoEstado, observacion || null, idRecibo]
         );
@@ -75,8 +91,9 @@ export class DbLocalSqliteRepository implements IRecibosRepository {
     // Método auxiliar para insertar datos semilla iniciales en SQLite
     async insertarSemilla(recibos: Recibo[]): Promise<void> {
         if (!this.db) await this.inicializarBaseDatos();
+        if (!this.db) return;
         for (const r of recibos) {
-            await this.db!.runAsync(
+            await this.db.runAsync(
                 `INSERT OR REPLACE INTO recibos_local (id, apartamento, residenteNombre, periodo, monto, fechaVencimiento, estado, referenciaBancaria, comprobanteUrl, observacionAdmin) 
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
                 [r.id, r.apartamento, r.residenteNombre, r.periodo, r.monto, r.fechaVencimiento, r.estado, r.referenciaBancaria || null, r.comprobanteUrl || null, r.observacionAdmin || null]
