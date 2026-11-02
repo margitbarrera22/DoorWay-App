@@ -1,5 +1,5 @@
 // src/app/index.tsx — Autor: Wilfran Leonardo Betancourt Ardila (HU-03 #3)
-import React from 'react';
+import React, { useState } from 'react';
 import { View, FlatList, Text, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useRecibos } from '../hooks/RecibosContext';
@@ -10,6 +10,13 @@ import { COLORES } from '../theme/tema';
 export default function PantallaEstadoCuenta() {
   const router = useRouter();
   const { recibos, estadoVista, mensajeError, cargar, modoAdmin, alternarModoAdmin } = useRecibos();
+  const [refrescando, setRefrescando] = useState(false);
+
+  const alRefrescar = async () => {
+    setRefrescando(true);
+    await cargar();
+    setRefrescando(false);
+  };
 
   return (
     <View style={estilos.contenedor}>
@@ -37,6 +44,8 @@ export default function PantallaEstadoCuenta() {
           data={recibos}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: 16 }}
+          refreshing={refrescando}
+          onRefresh={alRefrescar}
           renderItem={({ item }) => (
             <TarjetaRecibo recibo={item} alTocar={() => router.push(`/recibo/${item.id}`)} />
           )}
