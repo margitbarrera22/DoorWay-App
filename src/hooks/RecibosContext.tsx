@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useRef, useEffect } from 'react';
 import { Recibo, EstadoRecibo } from '../domain/modelos';
 import { IRecibosRepository } from '../data/contratos';
-import { DbLocalSqliteRepository } from '../data/dbLocalSqlite';
+import { RepositorioRecibosHibrido } from '../data/RepositorioRecibos';
 
 export type EstadoVista = 'cargando' | 'vacio' | 'error' | 'conDatos';
 
@@ -17,7 +17,7 @@ export interface ContextoRecibosType {
 }
 
 const RecibosContext = createContext<ContextoRecibosType | null>(null);
-const repositorioPorDefecto: IRecibosRepository = new DbLocalSqliteRepository();
+const repositorioPorDefecto: IRecibosRepository = new RepositorioRecibosHibrido();
 
 export interface RecibosProviderProps {
   children: React.ReactNode;
