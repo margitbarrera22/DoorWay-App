@@ -4,11 +4,13 @@ import { IRecibosRepository } from './contratos';
 import { Recibo, EstadoRecibo } from '../domain/modelos';
 import { DbLocalSqliteRepository } from './dbLocalSqlite';
 
-// Llaves de conexión de Supabase
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || 'TU_PROJECT_URL_DE_SUPABASE';
-const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'TU_ANON_KEY_DE_SUPABASE';
+// Llaves de conexión de Supabase (con fallback seguro que no crashea si faltan variables de entorno)
+const envUrl = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim();
+const SUPABASE_URL = envUrl && envUrl.startsWith('http') ? envUrl : 'https://doorway-demo.supabase.co';
+const envKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.trim();
+const SUPABASE_KEY = envKey || 'dummy-anon-key';
 
-export const supabase = createClient(SUPABASE_URL.trim(), SUPABASE_KEY.trim());
+export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 const dbLocal = new DbLocalSqliteRepository();
 
 export class RepositorioRecibosHibrido implements IRecibosRepository {
