@@ -130,17 +130,3 @@ Para garantizar una experiencia de producto comercial, robusta y visualmente sob
 | **Días 10 y 11**<br>*(Sáb 7 – Dom 8 Nov)* | **Said Pacheco** | Dev Dispositivo | • Conectar el sincronizador offline (`TEC-05 #17`): con red descarga anuncios de Supabase a SQLite; sin red sirve Cartelera y Directorio al 100 % desde SQLite local. | PR de `TEC-05 (#17)` fusionado y verificado. |
 | **Días 12 a 14**<br>*(Lun 9 – Mié 11 Nov)* | **Equipo Completo** | Cierre y QA en Dispositivo | • **Daniela:** Pruebas unitarias de dominio (`reglasNegocio.test.ts`).<br>• **Margit y Said:** Ejecución del *Demo Flow* en Android físico en **Modo Avión ✈️** (`HU-03`, `HU-08`, `HU-11`).<br>• **Wilfran:** Verificación de colisiones entre dos vecinos intentando tomar el mismo turno. | **Entregable Semana 2 Listo:** Tarjetas `HU-05`, `HU-02`, `HU-06`, `HU-08`, `HU-11` y `TEC-05` en columna «Hecho». |
 
----
-
-## 7. Instrucciones de Ejecución Local
-
-```bash
-# 1. Clonar el repositorio e ingresar al directorio
-git clone [https://github.com/margitbarrera22/DoorWay-App.git](https://github.com/margitbarrera22/DoorWay-App.git)
-cd DoorWay-App
-
-# 2. Instalar dependencias
-npm install
-
-# 3. Iniciar el servidor de desarrollo con Expo
-npx expo start
