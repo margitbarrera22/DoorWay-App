@@ -1,172 +1,75 @@
-import React, { useState } from 'react';
-import {
-    View,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    StyleSheet,
-    ScrollView,
-    Alert,
-    ActivityIndicator,
-} from 'react-native';
-import { useRouter } from 'expo-router';
+// src/app/recibo/subir.tsx — Autor: Said Alexander Pacheco Moncada (HU-01 #1)
+import React from 'react';
+import { View, Text, TextInput, Pressable, Image, StyleSheet, ScrollView } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSubirComprobante } from '../../hooks/useSubirComprobante';
 import { useRecibos } from '../../hooks/RecibosContext';
 import { COLORES } from '../../theme/tema';
 
-const colorFondo: string = (COLORES as any)?.fondo || (COLORES as any)?.background || '#F5F5F5';
-const colorTexto: string = (COLORES as any)?.texto || (COLORES as any)?.text || '#111111';
-const colorPrimario: string = (COLORES as any)?.primario || (COLORES as any)?.primary || '#007AFF';
+export default function SubirComprobanteScreen() {
+  const { idRecibo } = useLocalSearchParams<{ idRecibo?: string }>();
+  const router = useRouter();
+  const { cargar } = useRecibos();
+  const idObjetivo = idRecibo || 'rec-01';
 
-export default function SubirReciboScreen() {
-    const router = useRouter();
-    const context = useRecibos() as any;
+  // Este hook contiene toda la lógica de la cámara y el guardado en el repositorio
+  const { referencia, setReferencia, foto, avisoValidacion, guardando, capturarConCamara, enviarSoporte } =
+    useSubirComprobante(idObjetivo, async () => {
+      await cargar(); // Recarga la lista para mostrar el nuevo estado "En validación"
+      router.back();  // Vuelve al detalle del recibo
+    });
 
-    const [monto, setMonto] = useState('');
-    const [periodo, setPeriodo] = useState('');
-    const [comprobanteUrl, setComprobanteUrl] = useState('');
-    const [cargando, setCargando] = useState(false);
+  return (
+    <ScrollView style={ estilos.contenedor } contentContainerStyle={{ padding: 20 }}>
+      <Text style={ estilos.titulo }>Subir soporte de pago</Text>
+      <Text style={ estilos.sub }>Recibo asociado: {idObjetivo}</Text>
 
-    const handleGuardar = async () => {
-        if (!monto.trim() || !periodo.trim()) {
-            Alert.alert('Campos incompletos', 'Por favor ingresa el monto y el período.');
-            return;
-        }
+      <Text style={ estilos.label }>1. Número de referencia o aprobación bancaria</Text>
+      <TextInput
+        value={referencia}
+        onChangeText={setReferencia}
+        placeholder="Ej. NEQUI-849201 o PSE-33190"
+        style={ estilos.input }
+      />
 
-        const montoNum = parseFloat(monto);
-        if (isNaN(montoNum) || montoNum <= 0) {
-            Alert.alert('Monto inválido', 'Ingresa un valor numérico válido.');
-            return;
-        }
+      <Text style={ estilos.label }>2. Fotografía del comprobante (Cámara o Galería)</Text>
+      <Pressable onPress={capturarConCamara} style={ estilos.btnSecundario }>
+        <Text style={ estilos.btnSecTexto }>{foto ? 'Cambiar fotografía' : 'Tomar foto del comprobante'}</Text>
+      </Pressable>
 
-        try {
-            setCargando(true);
+      {foto && (
+        <View style={ estilos.previewBox }>
+          <Image source={{ uri: foto.uriLocal }} style={ estilos.previewImg } />
+          <Text style={ estilos.metaFoto }>Comprimida automáticamente (~{foto.pesoAproxKb} KB)</Text>
+        </View>
+      )}
 
-            const nuevoRecibo = {
-                id: Date.now().toString(),
-                periodo: periodo.trim(),
-                monto: montoNum,
-                comprobanteUrl: comprobanteUrl.trim() || undefined,
-                fecha: new Date().toISOString(),
-                estado: 'PENDIENTE',
-            };
+      {avisoValidacion && (
+        <View style={ estilos.alertaBox }>
+          <Text style={ estilos.alertaTexto }>{avisoValidacion}</Text>
+        </View>
+      )}
 
-            if (context && typeof context.agregarRecibo === 'function') {
-                await context.agregarRecibo(nuevoRecibo);
-            } else if (context && typeof context.subirRecibo === 'function') {
-                await context.subirRecibo(nuevoRecibo);
-            }
-
-            Alert.alert('Éxito', 'El recibo ha sido guardado correctamente.', [
-                {
-                    text: 'OK',
-                    onPress: () => router.back(),
-                },
-            ]);
-        } catch (error) {
-            Alert.alert('Error', 'No se pudo guardar el recibo.');
-        } finally {
-            setCargando(false);
-        }
-    };
-
-    return (
-        <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-            <Text style={styles.titulo}>Subir Nuevo Recibo</Text>
-
-            <View style={styles.grupo}>
-                <Text style={styles.label}>Período / Mes *</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="Ej. Octubre 2026"
-                    placeholderTextColor="#888888"
-                    value={periodo}
-                    onChangeText={setPeriodo}
-                />
-            </View>
-
-            <View style={styles.grupo}>
-                <Text style={styles.label}>Monto ($) *</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="0.00"
-                    placeholderTextColor="#888888"
-                    keyboardType="decimal-pad"
-                    value={monto}
-                    onChangeText={setMonto}
-                />
-            </View>
-
-            <View style={styles.grupo}>
-                <Text style={styles.label}>Comprobante (URL o Ruta)</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="Ej. https://... o ruta del archivo"
-                    placeholderTextColor="#888888"
-                    value={comprobanteUrl}
-                    onChangeText={setComprobanteUrl}
-                />
-            </View>
-
-            <TouchableOpacity
-                style={[styles.botonSubmit, cargando && styles.botonDeshabilitado]}
-                onPress={handleGuardar}
-                disabled={cargando}
-            >
-                {cargando ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                    <Text style={styles.textoBoton}>Guardar Recibo</Text>
-                )}
-            </TouchableOpacity>
-        </ScrollView>
-    );
+      <Pressable onPress={enviarSoporte} disabled={guardando} style={ estilos.btnPrimario }>
+        <Text style={ estilos.btnPrimTexto }>{guardando ? 'Enviando soporte...' : 'Enviar comprobante'}</Text>
+      </Pressable>
+    </ScrollView>
+  );
 }
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: colorFondo,
-    },
-    content: {
-        padding: 20,
-    },
-    titulo: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: colorTexto,
-        marginBottom: 24,
-    },
-    grupo: {
-        marginBottom: 16,
-    },
-    label: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#444444',
-        marginBottom: 8,
-    },
-    input: {
-        backgroundColor: '#FFFFFF',
-        borderWidth: 1,
-        borderColor: '#CCCCCC',
-        borderRadius: 8,
-        padding: 12,
-        fontSize: 16,
-        color: '#000000',
-    },
-    botonSubmit: {
-        backgroundColor: colorPrimario,
-        paddingVertical: 14,
-        borderRadius: 8,
-        alignItems: 'center',
-        marginTop: 20,
-    },
-    botonDeshabilitado: {
-        opacity: 0.6,
-    },
-    textoBoton: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
+const estilos = StyleSheet.create({
+  contenedor: { flex: 1, backgroundColor: COLORES.fondo },
+  titulo: { fontSize: 21, fontWeight: '800', color: COLORES.primario },
+  sub: { fontSize: 14, color: COLORES.textoGris, marginBottom: 16 },
+  label: { fontSize: 15, fontWeight: '700', color: COLORES.textoOscuro, marginTop: 14, marginBottom: 6 },
+  input: { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 10, padding: 14, fontSize: 16 },
+  btnSecundario: { backgroundColor: COLORES.secundario, padding: 15, borderRadius: 10, alignItems: 'center', minHeight: 48 },
+  btnSecTexto: { color: '#FFF', fontWeight: '700', fontSize: 16 },
+  previewBox: { marginTop: 14, alignItems: 'center' },
+  previewImg: { width: 220, height: 260, borderRadius: 10 },
+  metaFoto: { fontSize: 13, color: COLORES.textoGris, marginTop: 6 },
+  alertaBox: { backgroundColor: '#FEE2E2', padding: 12, borderRadius: 8, marginTop: 14 },
+  alertaTexto: { color: '#991B1B', fontWeight: '600', fontSize: 14 },
+  btnPrimario: { backgroundColor: COLORES.primario, padding: 16, borderRadius: 10, alignItems: 'center', marginTop: 22, minHeight: 50 },
+  btnPrimTexto: { color: '#FFF', fontWeight: '800', fontSize: 16 },
 });
