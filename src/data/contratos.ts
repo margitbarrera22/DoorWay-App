@@ -1,5 +1,5 @@
 // src/data/contratos.ts — Autora: Michel Daniela Bayona Díaz
-import { Recibo, EstadoRecibo, ResultadoFoto } from '../domain/modelos';
+import { Recibo, EstadoRecibo, ResultadoFoto, Reserva, AreaComun, BloqueHorario, Anuncio, ContactoEmergencia } from '../domain/modelos';
 
 export interface IRecibosRepository {
     obtenerTodos(): Promise<Recibo[]>;
@@ -11,4 +11,15 @@ export interface IRecibosRepository {
 export interface IServicioCamara {
     tomarFotoComprimida(): Promise<ResultadoFoto | null>;
     elegirDeGaleriaComprimida(): Promise<ResultadoFoto | null>;
+}
+
+export interface IReservasRepository {
+    obtenerPorAreaYFecha(area: AreaComun, fecha: string): Promise<Reserva[]>;
+    crearReserva(apartamento: string, area: AreaComun, fecha: string, bloque: BloqueHorario): Promise<Reserva>;
+    cancelarReserva(idReserva: string): Promise<void>;
+}
+
+export interface IComunidadRepository {
+    obtenerAnuncios(): Promise<Anuncio[]>;
+    obtenerDirectorioEmergencias(): Promise<ContactoEmergencia[]>;
 }
