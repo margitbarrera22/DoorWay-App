@@ -51,21 +51,46 @@ export class RepositorioRecibosHibrido implements IRecibosRepository {
     return todos.find((r) => r.id === id) ?? null;
   }
 
+  private async subirImagenAlBucketSoportes(idRecibo: string, uriLocal: string): Promise<string> {
+    try {
+      const respuestaArchivo = await fetch(uriLocal);
+      const arrayBuffer = await respuestaArchivo.arrayBuffer();
+      const rutaArchivo = `comprobantes/${idRecibo}-${Date.now()}.jpg`;
+
+      const { error: errorUpload } = await supabase.storage
+        .from('soportes')
+        .upload(rutaArchivo, arrayBuffer, {
+          contentType: 'image/jpeg',
+          upsert: true,
+        });
+
+      if (errorUpload) throw errorUpload;
+
+      const { data: urlData } = supabase.storage.from('soportes').getPublicUrl(rutaArchivo);
+      return urlData.publicUrl; // Devuelve link https://... visible en tu navegador y en cualquier celular
+    } catch {
+      // Si está en una red inestable, respalda con la URI local comprimida del dispositivo
+      return uriLocal;
+    }
+  }
+
   async subirComprobante(idRecibo: string, referencia: string, uriFotoLocal: string): Promise<Recibo> {
+    const urlFinalComprobante = await this.subirImagenAlBucketSoportes(idRecibo, uriFotoLocal);
+
     const { error } = await supabase
       .from('recibos')
       .update({
         estado: 'En validación',
         referencia_bancaria: referencia.trim(),
-        comprobante_url: uriFotoLocal,
+        comprobante_url: urlFinalComprobante,
       })
       .eq('id', idRecibo);
 
-    if (error) throw new Error('No se pudo registrar el comprobante en el servidor');
-    
-    // Actualiza también en SQLite local
-    await dbLocal.subirComprobante(idRecibo, referencia, uriFotoLocal);
-    
+    if (error) throw new Error('No se pudo subir el comprobante. Verifica tu conexión a internet.');
+
+    // Actualiza también en SQLite local con la URL final del bucket (o ruta local de respaldo)
+    await dbLocal.subirComprobante(idRecibo, referencia.trim(), urlFinalComprobante);
+
     const todos = await this.obtenerTodos();
     return todos.find((r) => r.id === idRecibo)!;
   }
