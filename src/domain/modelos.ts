@@ -117,3 +117,13 @@ export const RECIBOS_SEMILLA: Recibo[] = [
     observacionAdmin: null,
   },
 ];
+export type RolUsuario = 'residente' | 'admin';
+
+export interface UsuarioSesion {
+  id: string;
+  nombre: string;
+  correo: string;
+  rol: RolUsuario;
+  apartamento: string;
+  aceptoLey1581: boolean;
+}
