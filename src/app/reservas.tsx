@@ -1,209 +1,324 @@
-// src/app/reservas.tsx — Autor: Wilfran Leonardo Betancourt Ardila (HU-05 #5 y HU-02 #2)
-import React, { useState } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+// src/app/reservas.tsx — Autor: Wilfran Leonardo Betancourt Ardila (HU-05 #5, HU-02 #2 y HU-06 #6)
+import React from 'react';
+import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useRecibos } from '../hooks/RecibosContext';
-import { AreaComun, BloqueHorario } from '../domain/modelos';
-import { evaluarDerechoAReservar } from '../domain/reglasNegocio';
+import { AreaComun } from '../domain/modelos';
+import { useReservas, FECHAS_DEMO_RESERVAS } from '../hooks/ReservasContext';
+import { useAuth } from '../hooks/AuthContext';
+import { BannerMora } from '../components/BannerMora';
+import { SelectorBloques } from '../components/SelectorBloques';
+import { ModalTicketReserva } from '../components/ModalTicketReserva';
 import { COLORES } from '../theme/tema';
 
-const AREAS: AreaComun[] = ['Salón Social', 'Kiosco BBQ'];
-const FECHAS_DEMO = ['2026-11-15', '2026-11-16', '2026-11-17'];
-const BLOQUES_OFICIALES: BloqueHorario[] = ['09:00 - 13:00', '14:00 - 18:00', '19:00 - 23:00'];
+const AREAS_DISPONIBLES: Array<{ nombre: AreaComun; icono: string; detalle: string }> = [
+  { nombre: 'Salón Social', icono: '🎉', detalle: 'Eventos y reuniones · Cap. 40 personas' },
+  { nombre: 'Kiosco BBQ', icono: '🍖', detalle: 'Zona parrillera al aire libre · Cap. 15 personas' },
+];
 
 export default function PantallaReservas() {
   const router = useRouter();
-  const { recibos } = useRecibos();
-  const veredictoMora = evaluarDerechoAReservar(recibos);
+  const { usuarioActual } = useAuth();
+  const apartamentoActivo =
+    usuarioActual?.rol === 'residente' ? usuarioActual.apartamento : 'Torre B - Apto 302';
 
-  const [area, setArea] = useState<AreaComun>('Salón Social');
-  const [fecha, setFecha] = useState<string>(FECHAS_DEMO[0]);
-  const [bloqueSeleccionado, setBloqueSeleccionado] = useState<BloqueHorario | null>(null);
+  const {
+    area,
+    setArea,
+    fecha,
+    setFecha,
+    bloqueSeleccionado,
+    setBloqueSeleccionado,
+    reservasDelDia,
+    ticketConfirmado,
+    cerrarTicket,
+    mensajeFeedback,
+    avisoCancelacion,
+    cargandoDisponibilidad,
+    guardando,
+    cancelando,
+    veredictoMora,
+    cargarDisponibilidad,
+    confirmarReserva,
+    intentarCancelar,
+    compartirTicketPorWhatsApp,
+  } = useReservas();
 
-  // Semilla visual de demostración para el Día 1 (Salón Social ocupado en la tarde del 15)
-  const estaOcupado = (b: BloqueHorario) => {
-    return area === 'Salón Social' && fecha === '2026-11-15' && b === '14:00 - 18:00';
-  };
+  const misReservasActivas = reservasDelDia.filter(
+    (r) => r.apartamento === apartamentoActivo && r.estado === 'Confirmada'
+  );
 
   return (
-    <ScrollView style={estilos.contenedor} contentContainerStyle={{ padding: 18, paddingBottom: 40 }}>
-      {/* 1. Alerta de Bloqueo por Mora Activa (HU-02) */}
-      {!veredictoMora.permitido && (
-        <View style={estilos.bannerMora} accessibilityRole="alert">
-          <Text style={estilos.bannerMoraTitulo}>⚠️ Reserva Bloqueada por Mora Activa (HU-02)</Text>
-          <Text style={estilos.bannerMoraDesc}>{veredictoMora.motivoBloqueo}</Text>
+    <View style={estilos.contenedorPrincipal}>
+      {/* Barra de Navegación Modular Persistente */}
+      <View style={estilos.barraModulos}>
+        <Pressable
+          accessibilityRole="tab"
+          onPress={() => router.push('/')}
+          style={estilos.tabModulo}
+        >
+          <Text style={estilos.textoModulo}>💳 Cartera</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="tab"
+          accessibilityState={{ selected: true }}
+          style={[estilos.tabModulo, estilos.tabModuloActivo]}
+        >
+          <Text style={[estilos.textoModulo, estilos.textoModuloActivo]}>📅 Reservas</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="tab"
+          onPress={() => router.push('/comunidad')}
+          style={estilos.tabModulo}
+        >
+          <Text style={estilos.textoModulo}>📢 Comunidad</Text>
+        </Pressable>
+      </View>
+
+      <ScrollView style={estilos.contenedor} contentContainerStyle={{ padding: 16, paddingBottom: 36 }}>
+        {/* Encabezado de Unidad y Sincronización */}
+        <View style={estilos.headerUnidad}>
+          <View style={{ flex: 1 }}>
+            <Text style={estilos.etiquetaUnidad}>UNIDAD SOLICITANTE</Text>
+            <Text style={estilos.valorUnidad}>🏢 {apartamentoActivo}</Text>
+          </View>
           <Pressable
-            onPress={() => router.push('/')}
+            onPress={cargarDisponibilidad}
             accessibilityRole="button"
-            accessibilityLabel="Ir a cartera para ponerse al día"
-            style={estilos.btnIrACartera}
+            accessibilityLabel="Actualizar disponibilidad del calendario"
+            style={estilos.btnRefrescar}
           >
-            <Text style={estilos.btnIrACarteraTexto}>💳 Ver Cartera · Ponerse al Día</Text>
+            <Text style={estilos.btnRefrescarTexto}>
+              {cargandoDisponibilidad ? '⏳...' : '🔄 Actualizar'}
+            </Text>
           </Pressable>
         </View>
-      )}
 
-      {veredictoMora.permitido && (
-        <View style={estilos.bannerAlDia}>
-          <Text style={estilos.bannerAlDiaTexto}>
-            ✅ ¡Estás al día! Tienes habilitado el sistema de reservas de áreas comunes.
-          </Text>
+        {/* 1. Alerta de Bloqueo por Mora Activa (HU-02 · Componente Oficial de Margit) */}
+        {!veredictoMora.permitido ? (
+          <BannerMora
+            mensaje={veredictoMora.motivoBloqueo!}
+            alIrACartera={() => router.push('/')}
+          />
+        ) : (
+          <View style={estilos.bannerAlDia}>
+            <Text style={estilos.bannerAlDiaTexto}>
+              ✅ Cartera al día · Sin mora activa. Puedes reservar sin restricciones.
+            </Text>
+          </View>
+        )}
+
+        {/* 2. Selector de Área Común */}
+        <Text style={estilos.label}>1. Selecciona el Área Común</Text>
+        <View style={estilos.filaBotones}>
+          {AREAS_DISPONIBLES.map((item) => {
+            const activa = area === item.nombre;
+            return (
+              <Pressable
+                key={item.nombre}
+                onPress={() => setArea(item.nombre)}
+                accessibilityRole="button"
+                style={[estilos.cardArea, activa && estilos.cardAreaActiva]}
+              >
+                <Text style={estilos.iconoArea}>{item.icono}</Text>
+                <Text style={[estilos.tituloArea, activa && estilos.textoBlanco]}>
+                  {item.nombre}
+                </Text>
+                <Text style={[estilos.detalleArea, activa && estilos.textoBlancoSuave]}>
+                  {item.detalle}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
-      )}
 
-      {/* 2. Selector de Área Común */}
-      <Text style={estilos.seccionTitulo}>1. Selecciona el Área Común</Text>
-      <View style={estilos.filaChips}>
-        {AREAS.map((item) => {
-          const activo = area === item;
-          return (
-            <Pressable
-              key={item}
-              onPress={() => {
-                setArea(item);
-                setBloqueSeleccionado(null);
-              }}
-              accessibilityRole="button"
-              style={[estilos.chip, activo && estilos.chipActivo]}
-            >
-              <Text style={[estilos.chipTexto, activo && estilos.chipTextoActivo]}>
-                {item === 'Salón Social' ? '🎉 ' : '🍖 '}
-                {item}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+        {/* 3. Selector de Fecha */}
+        <Text style={estilos.label}>2. Elige la fecha en el calendario</Text>
+        <View style={estilos.filaBotones}>
+          {FECHAS_DEMO_RESERVAS.map((f) => {
+            const activa = fecha === f;
+            return (
+              <Pressable
+                key={f}
+                onPress={() => setFecha(f)}
+                accessibilityRole="button"
+                style={[estilos.chip, activa && estilos.chipActivo]}
+              >
+                <Text style={[estilos.chipTexto, activa && estilos.chipTextoActivo]}>📅 {f}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
 
-      {/* 3. Selector de Fecha */}
-      <Text style={estilos.seccionTitulo}>2. Selecciona la Fecha del Evento</Text>
-      <View style={estilos.filaChips}>
-        {FECHAS_DEMO.map((f) => {
-          const activo = fecha === f;
-          return (
-            <Pressable
-              key={f}
-              onPress={() => {
-                setFecha(f);
-                setBloqueSeleccionado(null);
-              }}
-              accessibilityRole="button"
-              style={[estilos.chip, activo && estilos.chipActivo]}
-            >
-              <Text style={[estilos.chipTexto, activo && estilos.chipTextoActivo]}>📅 {f}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
+        {/* 4. Calendario Cromático (HU-05 · Componente Oficial de Margit) */}
+        {cargandoDisponibilidad ? (
+          <View style={estilos.cajaCargando}>
+            <ActivityIndicator size="small" color={COLORES.primario} />
+            <Text style={estilos.textoCargando}>Consultando disponibilidad en Supabase...</Text>
+          </View>
+        ) : (
+          <SelectorBloques
+            reservasDelDia={reservasDelDia}
+            bloqueSeleccionado={bloqueSeleccionado}
+            alSeleccionarBloque={setBloqueSeleccionado}
+            deshabilitadoPorMora={!veredictoMora.permitido}
+          />
+        )}
 
-      {/* 4. Calendario Cromático de Bloques Horarios */}
-      <Text style={estilos.seccionTitulo}>3. Franjas Horarias Disponibles</Text>
-      <Text style={estilos.seccionSubtitulo}>
-        Verde = Disponible · Rojo = Ocupado · Azul = Tu selección
-      </Text>
-
-      {BLOQUES_OFICIALES.map((bloque) => {
-        const ocupado = estaOcupado(bloque);
-        const seleccionado = bloqueSeleccionado === bloque;
-        const deshabilitado = ocupado || !veredictoMora.permitido;
-
-        let bg = COLORES.pagadoFondo;
-        let borde = COLORES.pagadoTexto;
-        let textoColor = COLORES.pagadoTexto;
-        let etiqueta = 'DISPONIBLE';
-
-        if (ocupado) {
-          bg = COLORES.moraFondo;
-          borde = COLORES.moraTexto;
-          textoColor = COLORES.moraTexto;
-          etiqueta = 'OCUPADO (Torre A - Apto 104)';
-        } else if (seleccionado) {
-          bg = COLORES.primario;
-          borde = COLORES.primario;
-          textoColor = COLORES.blanco;
-          etiqueta = 'SELECCIONADO ✓';
-        }
-
-        return (
-          <Pressable
-            key={bloque}
-            disabled={deshabilitado}
-            onPress={() => setBloqueSeleccionado(bloque)}
-            accessibilityRole="button"
+        {/* 5. Mensajes de Retroalimentación / Anti-colisión / Cancelación */}
+        {(mensajeFeedback || avisoCancelacion) && (
+          <View
             style={[
-              estilos.bloqueCard,
-              { backgroundColor: bg, borderColor: borde },
-              deshabilitado && !ocupado && { opacity: 0.5 },
+              estilos.alertaBox,
+              avisoCancelacion?.includes('éxito') && estilos.alertaExitoBox,
             ]}
           >
-            <Text style={[estilos.bloqueHora, { color: textoColor }]}>🕒 {bloque}</Text>
-            <Text style={[estilos.bloqueEstado, { color: textoColor }]}>{etiqueta}</Text>
-          </Pressable>
-        );
-      })}
+            <Text
+              style={[
+                estilos.alertaTexto,
+                avisoCancelacion?.includes('éxito') && estilos.alertaExitoTexto,
+              ]}
+            >
+              {mensajeFeedback || avisoCancelacion}
+            </Text>
+          </View>
+        )}
 
-      {/* 5. Botón de Confirmación */}
-      <Pressable
-        disabled={!veredictoMora.permitido || !bloqueSeleccionado}
-        style={[
-          estilos.btnConfirmar,
-          (!veredictoMora.permitido || !bloqueSeleccionado) && estilos.btnConfirmarDeshabilitado,
-        ]}
-      >
-        <Text style={estilos.btnConfirmarTexto}>
-          {bloqueSeleccionado
-            ? `Confirmar Reserva: ${area} (${bloqueSeleccionado})`
-            : 'Selecciona una franja disponible'}
-        </Text>
-      </Pressable>
+        {/* 6. Botón de Confirmar Reserva */}
+        <Pressable
+          disabled={!veredictoMora.permitido || !bloqueSeleccionado || guardando}
+          onPress={() => confirmarReserva(apartamentoActivo)}
+          accessibilityRole="button"
+          style={[
+            estilos.btnConfirmar,
+            (!veredictoMora.permitido || !bloqueSeleccionado || guardando) && { opacity: 0.45 },
+          ]}
+        >
+          <Text style={estilos.btnConfirmarTexto}>
+            {guardando
+              ? 'Verificando disponibilidad sin colisión...'
+              : bloqueSeleccionado
+              ? `Confirmar Reserva · ${area} (${bloqueSeleccionado})`
+              : 'Confirmar Reserva sin Colisión'}
+          </Text>
+        </Pressable>
 
-      <Text style={estilos.notaPie}>
-        * Integración backend en Supabase y generación de ticket digital en desarrollo (Sprint 2 - Días 2 y 3).
-      </Text>
-    </ScrollView>
+        {/* 7. Mis Reservas Activas con Cancelación >24h (HU-06) */}
+        {misReservasActivas.length > 0 && (
+          <View style={estilos.seccionMisReservas}>
+            <Text style={estilos.tituloMisReservas}>📌 Tus reservas confirmadas en esta fecha</Text>
+            {misReservasActivas.map((miRes) => (
+              <View key={miRes.id} style={estilos.miReservaBox}>
+                <View style={{ marginBottom: 10 }}>
+                  <Text style={estilos.miReservaTexto}>
+                    ✅ {miRes.areaComun} · {miRes.bloqueHorario}
+                  </Text>
+                  <Text style={estilos.miReservaMeta}>
+                    Fecha: {miRes.fecha} · Ticket: {miRes.id}
+                  </Text>
+                </View>
+                <View style={estilos.filaAccionesReserva}>
+                  <Pressable
+                    onPress={() => compartirTicketPorWhatsApp(miRes)}
+                    accessibilityRole="button"
+                    style={estilos.btnCompartirMini}
+                  >
+                    <Text style={estilos.btnCompartirMiniTexto}>📲 WhatsApp</Text>
+                  </Pressable>
+                  <Pressable
+                    disabled={cancelando}
+                    onPress={() => intentarCancelar(miRes)}
+                    accessibilityRole="button"
+                    style={estilos.btnCancelar}
+                  >
+                    <Text style={estilos.btnCancelarTexto}>
+                      {cancelando ? 'Cancelando...' : 'Cancelar turno (>24h · HU-06)'}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* 8. Modal de Ticket Digital (HU-05 · Componente Oficial de Margit) */}
+        <ModalTicketReserva
+          reserva={ticketConfirmado}
+          alCerrar={cerrarTicket}
+          alCompartirWhatsApp={compartirTicketPorWhatsApp}
+        />
+      </ScrollView>
+    </View>
   );
 }
 
 const estilos = StyleSheet.create({
+  contenedorPrincipal: { flex: 1, backgroundColor: COLORES.fondo },
   contenedor: { flex: 1, backgroundColor: COLORES.fondo },
-  bannerMora: {
-    backgroundColor: COLORES.moraFondo,
-    borderWidth: 1.5,
-    borderColor: COLORES.moraTexto,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 18,
+  barraModulos: {
+    flexDirection: 'row',
+    backgroundColor: COLORES.blanco,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#CBD5E1',
   },
-  bannerMoraTitulo: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: COLORES.moraTexto,
-    marginBottom: 6,
-  },
-  bannerMoraDesc: {
-    fontSize: 14,
-    color: COLORES.textoOscuro,
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  btnIrACartera: {
-    backgroundColor: COLORES.moraTexto,
-    paddingVertical: 12,
+  tabModulo: {
+    flex: 1,
+    paddingVertical: 11,
     borderRadius: 10,
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
+    justifyContent: 'center',
     minHeight: 48,
+  },
+  tabModuloActivo: { backgroundColor: COLORES.primario },
+  textoModulo: { fontSize: 13, fontWeight: '800', color: COLORES.textoOscuro },
+  textoModuloActivo: { color: COLORES.blanco },
+  headerUnidad: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: COLORES.blanco,
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    elevation: 1,
+  },
+  etiquetaUnidad: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: COLORES.textoGris,
+    letterSpacing: 0.7,
+  },
+  valorUnidad: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: COLORES.primario,
+    marginTop: 2,
+  },
+  btnRefrescar: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    minHeight: 44,
     justifyContent: 'center',
   },
-  btnIrACarteraTexto: {
-    color: COLORES.blanco,
+  btnRefrescarTexto: {
+    fontSize: 12,
     fontWeight: '800',
-    fontSize: 14,
+    color: COLORES.primario,
   },
   bannerAlDia: {
     backgroundColor: COLORES.pagadoFondo,
     padding: 12,
     borderRadius: 12,
-    marginBottom: 16,
+    marginBottom: 14,
     borderWidth: 1,
     borderColor: '#86EFAC',
   },
@@ -212,85 +327,114 @@ const estilos = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
-  seccionTitulo: {
+  label: {
     fontSize: 16,
     fontWeight: '800',
     color: COLORES.primario,
-    marginTop: 10,
+    marginTop: 8,
     marginBottom: 8,
   },
-  seccionSubtitulo: {
-    fontSize: 12,
-    color: COLORES.textoGris,
-    marginBottom: 12,
+  filaBotones: { flexDirection: 'row', gap: 10, marginBottom: 12 },
+  cardArea: {
+    flex: 1,
+    backgroundColor: COLORES.blanco,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    minHeight: 96,
+    justifyContent: 'center',
   },
-  filaChips: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 16,
+  cardAreaActiva: {
+    backgroundColor: COLORES.primario,
+    borderColor: COLORES.primario,
   },
+  iconoArea: { fontSize: 22, marginBottom: 4 },
+  tituloArea: { fontSize: 15, fontWeight: '800', color: COLORES.primario },
+  detalleArea: { fontSize: 11, color: COLORES.textoGris, marginTop: 3, lineHeight: 15 },
+  textoBlanco: { color: COLORES.blanco },
+  textoBlancoSuave: { color: '#CBD5E1' },
   chip: {
     flex: 1,
     backgroundColor: '#E2E8F0',
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
-    justifyContent: 'center',
     minHeight: 48,
+    justifyContent: 'center',
   },
-  chipActivo: {
-    backgroundColor: COLORES.primario,
-  },
-  chipTexto: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: COLORES.textoOscuro,
-  },
-  chipTextoActivo: {
-    color: COLORES.blanco,
-  },
-  bloqueCard: {
-    borderWidth: 1.5,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 10,
-    minHeight: 56,
+  chipActivo: { backgroundColor: COLORES.primario },
+  chipTexto: { fontWeight: '700', color: COLORES.textoOscuro, fontSize: 13 },
+  chipTextoActivo: { color: COLORES.blanco },
+  cajaCargando: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    gap: 10,
   },
-  bloqueHora: {
-    fontSize: 15,
-    fontWeight: '800',
+  textoCargando: { fontSize: 13, color: COLORES.textoGris, fontWeight: '600' },
+  alertaBox: {
+    backgroundColor: '#FEE2E2',
+    padding: 12,
+    borderRadius: 10,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
   },
-  bloqueEstado: {
-    fontSize: 12,
-    fontWeight: '800',
+  alertaExitoBox: {
+    backgroundColor: '#DCFCE7',
+    borderColor: '#86EFAC',
   },
+  alertaTexto: { color: '#991B1B', fontWeight: '700', fontSize: 13 },
+  alertaExitoTexto: { color: '#166534' },
   btnConfirmar: {
     backgroundColor: COLORES.secundario,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    padding: 16,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: 14,
+    marginTop: 16,
     minHeight: 52,
-    elevation: 3,
+    justifyContent: 'center',
+    elevation: 2,
   },
-  btnConfirmarDeshabilitado: {
-    opacity: 0.45,
-  },
-  btnConfirmarTexto: {
-    color: COLORES.blanco,
+  btnConfirmarTexto: { color: '#FFF', fontWeight: '800', fontSize: 15, textAlign: 'center' },
+  seccionMisReservas: { marginTop: 22 },
+  tituloMisReservas: {
     fontSize: 15,
     fontWeight: '800',
-    textAlign: 'center',
+    color: COLORES.primario,
+    marginBottom: 8,
   },
-  notaPie: {
-    marginTop: 18,
-    fontSize: 11,
-    color: COLORES.textoGris,
-    textAlign: 'center',
-    fontStyle: 'italic',
+  miReservaBox: {
+    backgroundColor: '#DCFCE7',
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#86EFAC',
   },
+  miReservaTexto: { fontWeight: '800', color: '#166534', fontSize: 15 },
+  miReservaMeta: { fontSize: 12, color: '#166534', marginTop: 2, fontWeight: '600' },
+  filaAccionesReserva: { flexDirection: 'row', gap: 8 },
+  btnCompartirMini: {
+    backgroundColor: COLORES.secundario,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 8,
+    minHeight: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  btnCompartirMiniTexto: { color: '#FFF', fontWeight: '800', fontSize: 13 },
+  btnCancelar: {
+    flex: 1,
+    backgroundColor: '#991B1B',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    minHeight: 48,
+    justifyContent: 'center',
+  },
+  btnCancelarTexto: { color: '#FFF', fontWeight: '700', fontSize: 13 },
 });
