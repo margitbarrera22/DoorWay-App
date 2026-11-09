@@ -2,15 +2,19 @@
 import React from 'react';
 import { Stack } from 'expo-router';
 import { RecibosProvider } from '../hooks/RecibosContext';
+import { AuthProvider } from '../hooks/AuthContext';
 
 export default function RootLayout() {
   return (
-    <RecibosProvider>
-      <Stack screenOptions={{ headerStyle: { backgroundColor: '#0F2540' }, headerTintColor: '#FFFFFF' }}>
-        <Stack.Screen name="index" options={{ title: 'Estado de cuenta y recibos' }} />
-        <Stack.Screen name="recibo/[id]" options={{ title: 'Detalle del recibo' }} />
-        <Stack.Screen name="recibo/subir" options={{ title: 'Subir comprobante de pago' }} />
-      </Stack>
-    </RecibosProvider>
+    <AuthProvider>
+      <RecibosProvider>
+        <Stack screenOptions={{ headerStyle: { backgroundColor: '#0F2540' }, headerTintColor: '#FFFFFF' }}>
+          <Stack.Screen name="index" options={{ title: 'Estado de cuenta y recibos' }} />
+          <Stack.Screen name="login" options={{ title: 'Iniciar Sesión', headerShown: false }} />
+          <Stack.Screen name="recibo/[id]" options={{ title: 'Detalle del recibo' }} />
+          <Stack.Screen name="recibo/subir" options={{ title: 'Subir comprobante de pago' }} />
+        </Stack>
+      </RecibosProvider>
+    </AuthProvider>
   );
 }
