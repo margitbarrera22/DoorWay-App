@@ -1,31 +1,39 @@
 {
   "expo": {
     "name": "DoorWay-App",
-    "slug": "doorwayapp",
-    "scheme": "doorwayapp",
-    "version": "1.0.0",
+    "slug": "doorway-app",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
+    "scheme": "doorway",
     "userInterfaceStyle": "light",
-    "ios": {
-      "supportsTablet": true
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F2540"
     },
     "android": {
+      "package": "com.unipaz.doorwayapp",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0F2540"
       },
-      "predictiveBackGestureEnabled": false
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "plugins": [
       "expo-router",
-      "expo-status-bar",
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "DoorWay-App necesita acceso a tu galería para adjuntar comprobantes de pago.",
+          "cameraPermission": "DoorWay-App necesita acceso a tu cámara para fotografiar el recibo o soporte bancario."
+        }
+      ]
     ]
   }
 }

@@ -1,77 +1,105 @@
-// src/hooks/AuthContext.tsx — Contexto de autenticación y roles de usuario (HU-01)
-import React, { createContext, useContext, useState } from 'react';
-import { useRouter } from 'expo-router';
-
-export interface Usuario {
-    apartamento: string;
-    nombre: string;
-    rol: 'residente' | 'administrador';
-}
+// src/hooks/AuthContext.tsx — Autores: Wilfran Leonardo Betancourt Ardila & Said Alexander Pacheco Moncada (Elemento Transversal #2 · Login y Sesión SQLite)
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { UsuarioSesion } from '../domain/modelos';
+import { IAuthRepository } from '../data/contratos';
+import { RepositorioAuthHibrido } from '../data/RepositorioAuth';
 
 export interface AuthContextType {
-    usuario: Usuario | null;
-    estaAutenticado: boolean;
-    iniciarSesion: (apartamento: string, contrasena: string) => Promise<void>;
-    cerrarSesion: () => void;
+  usuarioActual: UsuarioSesion | null;
+  estaAutenticado: boolean;
+  cargandoSesion: boolean;
+  errorAuth: string | null;
+  iniciarSesion: (correo: string, pin: string) => Promise<boolean>;
+  aceptarLey1581: () => Promise<void>;
+  cerrarSesion: () => Promise<void>;
+  limpiarErrorAuth: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
+const repositorioPorDefecto: IAuthRepository = new RepositorioAuthHibrido();
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-    const [usuario, setUsuario] = useState<Usuario | null>(null);
-    const router = useRouter();
-
-    const iniciarSesion = async (apartamento: string, contrasena: string): Promise<void> => {
-        const aptoNormalizado = apartamento.trim();
-        const clave = contrasena.trim();
-
-        if (!aptoNormalizado || !clave) {
-            throw new Error('Por favor ingresa tu apartamento y contraseña.');
-        }
-
-        // Simulación / Validación de autenticación
-        if (aptoNormalizado.toLowerCase() === 'admin' && clave === 'admin123') {
-            setUsuario({
-                apartamento: 'Administración',
-                nombre: 'Administrador(a) del Conjunto',
-                rol: 'administrador',
-            });
-        } else {
-            // Usuario residente por defecto
-            setUsuario({
-                apartamento: aptoNormalizado,
-                nombre: 'Doña Martha Gómez',
-                rol: 'residente',
-            });
-        }
-
-        router.replace('/');
-    };
-
-    const cerrarSesion = () => {
-        setUsuario(null);
-        router.replace('/login');
-    };
-
-    return (
-        <AuthContext.Provider
-            value={{
-                usuario,
-                estaAutenticado: usuario !== null,
-                iniciarSesion,
-                cerrarSesion,
-            }}
-        >
-            {children}
-        </AuthContext.Provider>
-    );
+export interface AuthProviderProps {
+  children: React.ReactNode;
+  repositorio?: IAuthRepository;
 }
 
-export function useAuth(): AuthContextType {
-    const context = useContext(AuthContext);
-    if (!context) {
-        throw new Error('useAuth debe ser utilizado dentro de un AuthProvider');
+export function AuthProvider({ children, repositorio = repositorioPorDefecto }: AuthProviderProps) {
+  const [usuarioActual, setUsuarioActual] = useState<UsuarioSesion | null>(null);
+  const [cargandoSesion, setCargandoSesion] = useState<boolean>(true);
+  const [errorAuth, setErrorAuth] = useState<string | null>(null);
+
+  useEffect(() => {
+    let montado = true;
+    async function restaurarSesionLocal() {
+      try {
+        const sesionGuardada = await repositorio.obtenerSesionActivaLocal();
+        if (montado && sesionGuardada) {
+          setUsuarioActual(sesionGuardada);
+        }
+      } catch {
+        // Si no existe sesión previa en SQLite, continúa sin sesión activa
+      } finally {
+        if (montado) {
+          setCargandoSesion(false);
+        }
+      }
     }
-    return context;
+    restaurarSesionLocal();
+    return () => {
+      montado = false;
+    };
+  }, [repositorio]);
+
+  async function iniciarSesion(correo: string, pin: string): Promise<boolean> {
+    setErrorAuth(null);
+    try {
+      const sesion = await repositorio.iniciarSesion(correo, pin);
+      setUsuarioActual(sesion);
+      return true;
+    } catch (e: any) {
+      setErrorAuth(e?.message || 'No fue posible iniciar sesión. Verifica tus datos.');
+      return false;
+    }
+  }
+
+  async function aceptarLey1581(): Promise<void> {
+    if (!usuarioActual) return;
+    try {
+      const actualizada = await repositorio.registrarAceptacionLey1581(usuarioActual.id);
+      setUsuarioActual(actualizada);
+    } catch (e: any) {
+      setErrorAuth(e?.message || 'No se pudo registrar la aceptación de privacidad.');
+    }
+  }
+
+  async function cerrarSesion(): Promise<void> {
+    setErrorAuth(null);
+    await repositorio.cerrarSesion();
+    setUsuarioActual(null);
+  }
+
+  return (
+    <AuthContext.Provider
+      value={{
+        usuarioActual,
+        estaAutenticado: usuarioActual !== null,
+        cargandoSesion,
+        errorAuth,
+        iniciarSesion,
+        aceptarLey1581,
+        cerrarSesion,
+        limpiarErrorAuth: () => setErrorAuth(null),
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) {
+    throw new Error('useAuth debe usarse dentro de un AuthProvider');
+  }
+  return ctx;
+}

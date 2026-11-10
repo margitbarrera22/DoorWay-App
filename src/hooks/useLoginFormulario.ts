@@ -1,38 +1,58 @@
-// src/hooks/useLoginFormulario.ts — Autor: Said Alexander Pacheco Moncada (HU-01 #1)
+// src/hooks/useLoginFormulario.ts — Autor: Said Alexander Pacheco Moncada (HU-01 #1 / Login Híbrido)
 import { useState } from 'react';
+import { useRouter } from 'expo-router';
 import { useAuth } from './AuthContext';
 
 export function useLoginFormulario() {
-    const [apartamento, setApartamento] = useState('');
-    const [password, setPassword] = useState('');
-    const [cargando, setCargando] = useState(false);
-    const [errorMensaje, setErrorMensaje] = useState<string | null>(null);
-    const { iniciarSesion } = useAuth();
+  const [apartamento, setApartamento] = useState('martha@doorway.com');
+  const [password, setPassword] = useState('3020');
+  const [cargando, setCargando] = useState(false);
+  const [errorMensaje, setErrorMensaje] = useState<string | null>(null);
+  const { iniciarSesion } = useAuth();
+  const router = useRouter();
 
-    const manejarSubmit = async () => {
-        if (!apartamento.trim() || !password.trim()) {
-            setErrorMensaje('Por favor ingresa tu apartamento y contraseña.');
-            return;
-        }
+  const manejarSubmit = async () => {
+    const entrada = apartamento.trim();
+    const clave = password.trim();
 
-        try {
-            setCargando(true);
-            setErrorMensaje(null);
-            await iniciarSesion(apartamento.trim(), password.trim());
-        } catch (err: any) {
-            setErrorMensaje(err.message || 'Error al iniciar sesión. Verifica tus credenciales.');
-        } finally {
-            setCargando(false);
-        }
-    };
+    if (!entrada || !clave) {
+      setErrorMensaje('Por favor ingresa tu correo (o unidad) y tu PIN de acceso.');
+      return;
+    }
 
-    return {
-        apartamento,
-        setApartamento,
-        password,
-        setPassword,
-        cargando,
-        errorMensaje,
-        manejarSubmit,
-    };
+    // Soporta tanto el correo directo como atajos de unidad ("302" -> martha@doorway.com, "admin" -> admin@doorway.com)
+    let correoNormalizado = entrada;
+    if (!entrada.includes('@')) {
+      if (entrada.toLowerCase().includes('admin')) {
+        correoNormalizado = 'admin@doorway.com';
+      } else {
+        correoNormalizado = 'martha@doorway.com';
+      }
+    }
+
+    try {
+      setCargando(true);
+      setErrorMensaje(null);
+      const exito = await iniciarSesion(correoNormalizado, clave);
+      if (exito) {
+        router.replace('/');
+      } else {
+        setErrorMensaje('Credenciales inválidas. Verifica tu correo y PIN (Ej: martha@doorway.com / 3020).');
+      }
+    } catch (err: any) {
+      setErrorMensaje(err.message || 'Error al iniciar sesión. Verifica tus credenciales.');
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  return {
+    apartamento,
+    setApartamento,
+    password,
+    setPassword,
+    cargando,
+    errorMensaje,
+    manejarSubmit,
+  };
 }

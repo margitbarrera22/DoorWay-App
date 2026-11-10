@@ -1,5 +1,15 @@
 // src/data/contratos.ts — Autora: Michel Daniela Bayona Díaz
-import { Recibo, EstadoRecibo, ResultadoFoto, Reserva, AreaComun, BloqueHorario, Anuncio, ContactoEmergencia } from '../domain/modelos';
+import {
+    Recibo,
+    EstadoRecibo,
+    ResultadoFoto,
+    Reserva,
+    AreaComun,
+    BloqueHorario,
+    Anuncio,
+    ContactoEmergencia,
+    UsuarioSesion,
+} from '../domain/modelos';
 
 export interface IRecibosRepository {
     obtenerTodos(): Promise<Recibo[]>;
@@ -19,7 +29,15 @@ export interface IReservasRepository {
     cancelarReserva(idReserva: string): Promise<void>;
 }
 
+export interface IAuthRepository {
+    iniciarSesion(correo: string, pin: string): Promise<UsuarioSesion>;
+    obtenerSesionActivaLocal(): Promise<UsuarioSesion | null>;
+    registrarAceptacionLey1581(idUsuario: string): Promise<UsuarioSesion>;
+    cerrarSesion(): Promise<void>;
+}
+
 export interface IComunidadRepository {
     obtenerAnuncios(): Promise<Anuncio[]>;
+    crearAnuncioAdmin(titulo: string, contenido: string, categoria: Anuncio['categoria']): Promise<Anuncio>;
     obtenerDirectorioEmergencias(): Promise<ContactoEmergencia[]>;
 }

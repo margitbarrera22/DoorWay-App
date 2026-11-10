@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useRef, useEffect } from 'r
 import { Recibo, EstadoRecibo } from '../domain/modelos';
 import { IRecibosRepository } from '../data/contratos';
 import { RepositorioRecibosHibrido } from '../data/RepositorioRecibos';
+import { useAuth } from './AuthContext';
 
 export type EstadoVista = 'cargando' | 'vacio' | 'error' | 'conDatos';
 
@@ -30,6 +31,21 @@ export function RecibosProvider({ children, repositorio = repositorioPorDefecto 
   const [mensajeError, setMensajeError] = useState('');
   const [modoAdmin, setModoAdmin] = useState(false);
   const peticionEnCurso = useRef(false);
+
+  // Sincronización automática con AuthContext si hay sesión activa
+  let usuarioActualRol: 'residente' | 'admin' | null = null;
+  try {
+    const auth = useAuth();
+    usuarioActualRol = auth.usuarioActual?.rol ?? null;
+  } catch {
+    // Permite usar RecibosProvider de forma aislada en pruebas unitarias
+  }
+
+  useEffect(() => {
+    if (usuarioActualRol) {
+      setModoAdmin(usuarioActualRol === 'admin');
+    }
+  }, [usuarioActualRol]);
 
   async function cargar() {
     if (peticionEnCurso.current) return;
@@ -67,7 +83,7 @@ export function RecibosProvider({ children, repositorio = repositorioPorDefecto 
         estadoVista,
         mensajeError,
         modoAdmin,
-        alternarModoAdmin: () => setModoAdmin(!modoAdmin),
+        alternarModoAdmin: () => setModoAdmin((prev) => !prev),
         cargar,
         conciliar,
       }}

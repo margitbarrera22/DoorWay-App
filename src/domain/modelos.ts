@@ -51,6 +51,17 @@ export interface ContactoEmergencia {
   disponible24h: boolean;
 }
 
+export type RolUsuario = 'residente' | 'admin';
+
+export interface UsuarioSesion {
+  id: string;
+  nombre: string;
+  correo: string;
+  rol: RolUsuario;
+  apartamento: string;
+  aceptoLey1581: boolean;
+}
+
 export function tieneMoraActiva(recibos: Recibo[]): boolean {
   return recibos.some((r) => r.estado === 'En mora');
 }
@@ -115,5 +126,63 @@ export const RECIBOS_SEMILLA: Recibo[] = [
     referenciaBancaria: 'NEQUI-112094',
     comprobanteUrl: null,
     observacionAdmin: null,
+  },
+];
+
+export const ANUNCIOS_SEMILLA: Anuncio[] = [
+  {
+    id: 'anu-01',
+    titulo: 'Corte programado de agua por lavado de tanques',
+    contenido:
+      'Este sábado de 8:00 AM a 12:00 PM se realizará mantenimiento preventivo del tanque elevado de las Torres A y B.',
+    categoria: 'Mantenimiento',
+    fechaPublicacion: '2026-11-05',
+  },
+  {
+    id: 'anu-02',
+    titulo: 'Asamblea extraordinaria de copropietarios',
+    contenido:
+      'Se cita a todos los residentes el próximo viernes a las 7:00 PM en el Salón Social para aprobar el presupuesto de seguridad.',
+    categoria: 'Asamblea',
+    fechaPublicacion: '2026-11-04',
+  },
+  {
+    id: 'anu-03',
+    titulo: 'Control de ingreso vehicular en portería',
+    contenido:
+      'Recuerde anunciar a sus visitantes con anticipación y mantener al día su cuota de administración para uso del BBQ.',
+    categoria: 'Seguridad',
+    fechaPublicacion: '2026-11-03',
+  },
+];
+
+export const DIRECTORIO_EMERGENCIAS_SEMILLA: ContactoEmergencia[] = [
+  {
+    id: 'em-01',
+    entidad: 'Portería Principal · Conjunto La Nueva Esperanza',
+    telefono: '3158894021',
+    descripcion: 'Vigilancia interna, apertura de portón y control de visitantes.',
+    disponible24h: true,
+  },
+  {
+    id: 'em-02',
+    entidad: 'Policía Nacional · Cuadrante Barrancabermeja',
+    telefono: '123',
+    descripcion: 'Atención inmediata de emergencias de seguridad y convivencia ciudadana.',
+    disponible24h: true,
+  },
+  {
+    id: 'em-03',
+    entidad: 'Bomberos Voluntarios de Barrancabermeja',
+    telefono: '119',
+    descripcion: 'Incendios, fugas de gas, rescates e inundaciones en áreas comunes.',
+    disponible24h: true,
+  },
+  {
+    id: 'em-04',
+    entidad: 'Urgencias de Servicios Públicos (ESSA / Aguas de Barrancabermeja)',
+    telefono: '115',
+    descripcion: 'Reporte de daños eléctricos en torres o rotura de tuberías matrices.',
+    disponible24h: true,
   },
 ];
