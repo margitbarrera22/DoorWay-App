@@ -1,17 +1,31 @@
-// src/app/index.tsx — Autor: Wilfran Leonardo Betancourt Ardila (HU-03 #3)
+// src/app/index.tsx — Autor: Wilfran Leonardo Betancourt Ardila (HU-03 #3 y Elementos Transversales #2, #5 y #7)
 import React, { useState } from 'react';
-import { View, FlatList, Text, Pressable, StyleSheet } from 'react-native';
+import { View, FlatList, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useAuth } from '../hooks/AuthContext';
 import { useRecibos } from '../hooks/RecibosContext';
 import { TarjetaRecibo } from '../components/TarjetaRecibo';
 import { EstadoPantalla } from '../components/EstadoPantalla';
+import { BarraNavegacionModulos } from '../components/BarraNavegacionModulos';
+import { BarraSesionHeader } from '../components/BarraSesionHeader';
+import { ModalPrivacidadLey1581 } from '../components/ModalPrivacidadLey1581';
+import LoginScreen from './login';
 import { COLORES } from '../theme/tema';
 import { evaluarDerechoAReservar } from '../domain/reglasNegocio';
 
 export default function PantallaEstadoCuenta() {
   const router = useRouter();
-  const { recibos, estadoVista, mensajeError, cargar, modoAdmin, alternarModoAdmin } = useRecibos();
+  const { usuarioActual, cargandoSesion, aceptarLey1581 } = useAuth();
+  const { recibos, estadoVista, mensajeError, cargar, modoAdmin } = useRecibos();
   const [refrescando, setRefrescando] = useState(false);
+
+  if (cargandoSesion) {
+    return <EstadoPantalla tipo="cargando" mensaje="Restaurando sesión activa desde SQLite..." />;
+  }
+
+  if (!usuarioActual) {
+    return <LoginScreen />;
+  }
 
   const alRefrescar = async () => {
     setRefrescando(true);
@@ -23,48 +37,18 @@ export default function PantallaEstadoCuenta() {
 
   return (
     <View style={estilos.contenedor}>
-      {/* 1. Barra de Navegación de Módulos (Nivel Superior) */}
-      <View style={estilos.barraModulos}>
-        <Pressable
-          accessibilityRole="tab"
-          accessibilityState={{ selected: true }}
-          style={[estilos.tabModulo, estilos.tabModuloActivo]}
-        >
-          <Text style={[estilos.textoModulo, estilos.textoModuloActivo]}>💳 Cartera</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="tab"
-          onPress={() => router.push('/reservas')}
-          style={estilos.tabModulo}
-        >
-          <Text style={estilos.textoModulo}>📅 Reservas</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="tab"
-          onPress={() => router.push('/comunidad')}
-          style={estilos.tabModulo}
-        >
-          <Text style={estilos.textoModulo}>📢 Comunidad</Text>
-        </Pressable>
-      </View>
+      {/* Modal Legal Ley 1581 de 2012 (Evento de Dominio #2: Solo se muestra si aceptoLey1581 es false) */}
+      <ModalPrivacidadLey1581
+        visible={!usuarioActual.aceptoLey1581}
+        nombreUsuario={usuarioActual.nombre}
+        alAceptar={aceptarLey1581}
+      />
 
-      {/* 2. Barra de Rol y Contexto de Usuario */}
-      <View style={estilos.barraRol}>
-        <View style={{ flex: 1 }}>
-          <Text style={estilos.subtituloRol}>SESIÓN ACTIVA</Text>
-          <Text style={estilos.textoRol}>
-            {modoAdmin ? '🛡️ Administrador General' : '👤 Residente: Doña Martha (302)'}
-          </Text>
-        </View>
-        <Pressable
-          onPress={alternarModoAdmin}
-          accessibilityRole="button"
-          accessibilityLabel="Cambiar entre vista de Residente y Administrador"
-          style={estilos.btnRol}
-        >
-          <Text style={estilos.btnRolTexto}>Cambiar Rol</Text>
-        </Pressable>
-      </View>
+      {/* 1. Barra de Navegación de Módulos (Nivel Superior) */}
+      <BarraNavegacionModulos />
+
+      {/* 2. Barra de Sesión Real y Cierre de Sesión */}
+      <BarraSesionHeader />
 
       {/* 3. Indicador de Estado de Mora (HU-02 Regla de Negocio) */}
       {!modoAdmin && recibos.length > 0 && (
@@ -124,71 +108,6 @@ export default function PantallaEstadoCuenta() {
 
 const estilos = StyleSheet.create({
   contenedor: { flex: 1, backgroundColor: COLORES.fondo },
-  barraModulos: {
-    flexDirection: 'row',
-    backgroundColor: COLORES.blanco,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    gap: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#CBD5E1',
-  },
-  tabModulo: {
-    flex: 1,
-    paddingVertical: 11,
-    borderRadius: 10,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 48,
-  },
-  tabModuloActivo: {
-    backgroundColor: COLORES.primario,
-  },
-  textoModulo: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: COLORES.textoOscuro,
-  },
-  textoModuloActivo: {
-    color: COLORES.blanco,
-  },
-  barraRol: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#EEF2F6',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  subtituloRol: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: COLORES.textoGris,
-    letterSpacing: 0.8,
-  },
-  textoRol: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: COLORES.primario,
-    marginTop: 2,
-  },
-  btnRol: {
-    backgroundColor: COLORES.secundario,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 8,
-    minHeight: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  btnRolTexto: {
-    color: COLORES.blanco,
-    fontWeight: '800',
-    fontSize: 13,
-  },
   bannerAlDia: {
     backgroundColor: COLORES.pagadoFondo,
     paddingHorizontal: 16,
@@ -232,3 +151,4 @@ const estilos = StyleSheet.create({
     color: COLORES.textoGris,
   },
 });
+

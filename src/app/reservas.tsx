@@ -8,6 +8,8 @@ import { useAuth } from '../hooks/AuthContext';
 import { BannerMora } from '../components/BannerMora';
 import { SelectorBloques } from '../components/SelectorBloques';
 import { ModalTicketReserva } from '../components/ModalTicketReserva';
+import { BarraNavegacionModulos } from '../components/BarraNavegacionModulos';
+import { BarraSesionHeader } from '../components/BarraSesionHeader';
 import { COLORES } from '../theme/tema';
 
 const AREAS_DISPONIBLES: Array<{ nombre: AreaComun; icono: string; detalle: string }> = [
@@ -49,30 +51,9 @@ export default function PantallaReservas() {
 
   return (
     <View style={estilos.contenedorPrincipal}>
-      {/* Barra de Navegación Modular Persistente */}
-      <View style={estilos.barraModulos}>
-        <Pressable
-          accessibilityRole="tab"
-          onPress={() => router.push('/')}
-          style={estilos.tabModulo}
-        >
-          <Text style={estilos.textoModulo}>💳 Cartera</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="tab"
-          accessibilityState={{ selected: true }}
-          style={[estilos.tabModulo, estilos.tabModuloActivo]}
-        >
-          <Text style={[estilos.textoModulo, estilos.textoModuloActivo]}>📅 Reservas</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="tab"
-          onPress={() => router.push('/comunidad')}
-          style={estilos.tabModulo}
-        >
-          <Text style={estilos.textoModulo}>📢 Comunidad</Text>
-        </Pressable>
-      </View>
+      {/* Barra de Navegación Modular Persistente y Encabezado de Sesión */}
+      <BarraNavegacionModulos />
+      <BarraSesionHeader />
 
       <ScrollView style={estilos.contenedor} contentContainerStyle={{ padding: 16, paddingBottom: 36 }}>
         {/* Encabezado de Unidad y Sincronización */}

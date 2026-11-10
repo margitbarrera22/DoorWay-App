@@ -1,20 +1,44 @@
-// src/app/comunidad.tsx — Autores: Margit Dayanna Barrera Gutiérrez & Wilfran Leonardo Betancourt Ardila (HU-08 #8, HU-11 #11 y TEC-05 #17)
+// src/app/comunidad.tsx — Autores: Margit Dayanna Barrera Gutiérrez, Wilfran Leonardo Betancourt Ardila & Michel Daniela Bayona Díaz (HU-08 #8, HU-11 #11 y TEC-05 #17)
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable, Linking, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
+import {
+  View,
+  Text,
+  ScrollView,
+  Pressable,
+  Linking,
+  StyleSheet,
+  TextInput,
+} from 'react-native';
 import { Anuncio, ContactoEmergencia } from '../domain/modelos';
 import { RepositorioComunidadHibrido } from '../data/RepositorioComunidadHibrido';
+import { useAuth } from '../hooks/AuthContext';
 import { EstadoPantalla } from '../components/EstadoPantalla';
+import { BarraNavegacionModulos } from '../components/BarraNavegacionModulos';
+import { BarraSesionHeader } from '../components/BarraSesionHeader';
 import { COLORES } from '../theme/tema';
 
 const repoComunidad = new RepositorioComunidadHibrido();
 
+const CATEGORIAS_ANUNCIO: Array<Anuncio['categoria']> = [
+  'Mantenimiento',
+  'Asamblea',
+  'Seguridad',
+  'Convivencia',
+];
+
 export default function PantallaComunidad() {
-  const router = useRouter();
+  const { usuarioActual } = useAuth();
   const [anuncios, setAnuncios] = useState<Anuncio[]>([]);
   const [contactos, setContactos] = useState<ContactoEmergencia[]>([]);
   const [cargando, setCargando] = useState(true);
   const [modoOffline, setModoOffline] = useState(false);
+
+  // Estado del formulario de nuevo comunicado (Solo Administrador · HU-08)
+  const [nuevoTitulo, setNuevoTitulo] = useState('');
+  const [nuevoContenido, setNuevoContenido] = useState('');
+  const [nuevaCategoria, setNuevaCategoria] = useState<Anuncio['categoria']>('Mantenimiento');
+  const [publicando, setPublicando] = useState(false);
+  const [mensajeAdmin, setMensajeAdmin] = useState<string | null>(null);
 
   async function cargarDatos() {
     setCargando(true);
@@ -36,32 +60,36 @@ export default function PantallaComunidad() {
     Linking.openURL(`tel:${telefono}`);
   };
 
+  const publicarComunicadoAdmin = async () => {
+    if (!nuevoTitulo.trim() || !nuevoContenido.trim()) {
+      setMensajeAdmin('⚠️ Por favor completa el título y el contenido del comunicado.');
+      return;
+    }
+
+    setPublicando(true);
+    setMensajeAdmin(null);
+    try {
+      const creado = await repoComunidad.crearAnuncioAdmin(
+        nuevoTitulo,
+        nuevoContenido,
+        nuevaCategoria
+      );
+      setAnuncios((prev) => [creado, ...prev.filter((a) => a.id !== creado.id)]);
+      setNuevoTitulo('');
+      setNuevoContenido('');
+      setMensajeAdmin('✅ Comunicado publicado en la Cartelera y respaldado en SQLite.');
+    } catch {
+      setMensajeAdmin('⚠️ Error al publicar el comunicado.');
+    } finally {
+      setPublicando(false);
+    }
+  };
+
   return (
     <View style={estilos.contenedorPrincipal}>
       {/* Barra de Navegación Modular Persistente */}
-      <View style={estilos.barraModulos}>
-        <Pressable
-          accessibilityRole="tab"
-          onPress={() => router.push('/')}
-          style={estilos.tabModulo}
-        >
-          <Text style={estilos.textoModulo}>💳 Cartera</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="tab"
-          onPress={() => router.push('/reservas')}
-          style={estilos.tabModulo}
-        >
-          <Text style={estilos.textoModulo}>📅 Reservas</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="tab"
-          accessibilityState={{ selected: true }}
-          style={[estilos.tabModulo, estilos.tabModuloActivo]}
-        >
-          <Text style={[estilos.textoModulo, estilos.textoModuloActivo]}>📢 Comunidad</Text>
-        </Pressable>
-      </View>
+      <BarraNavegacionModulos />
+      <BarraSesionHeader />
 
       {cargando ? (
         <EstadoPantalla tipo="cargando" mensaje="Cargando cartelera y directorio local..." />
@@ -72,6 +100,78 @@ export default function PantallaComunidad() {
               <Text style={estilos.badgeOfflineTexto}>
                 ✈️ Modo sin conexión activo: Leyendo Cartelera y Directorio desde SQLite local
               </Text>
+            </View>
+          )}
+
+          {/* Formulario exclusivo para el Administrador: Publicar Comunicado en Cartelera (HU-08 / Evento #15) */}
+          {usuarioActual?.rol === 'admin' && (
+            <View style={estilos.panelAdminAnuncio}>
+              <Text style={estilos.tituloFormAdmin}>
+                🛡️ Nuevo Comunicado Oficial (Solo Administrador · HU-08)
+              </Text>
+              <Text style={estilos.subtituloFormAdmin}>
+                Publica circulares en Supabase con respaldo inmediato en caché SQLite
+              </Text>
+
+              <Text style={estilos.etiquetaCampo}>Categoría del anuncio</Text>
+              <View style={estilos.filaCategorias}>
+                {CATEGORIAS_ANUNCIO.map((cat) => {
+                  const activa = nuevaCategoria === cat;
+                  return (
+                    <Pressable
+                      key={cat}
+                      onPress={() => setNuevaCategoria(cat)}
+                      accessibilityRole="button"
+                      style={[estilos.chipCategoria, activa && estilos.chipCategoriaActiva]}
+                    >
+                      <Text
+                        style={[
+                          estilos.chipCategoriaTexto,
+                          activa && estilos.chipCategoriaTextoActivo,
+                        ]}
+                      >
+                        {cat}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <Text style={estilos.etiquetaCampo}>Título del comunicado</Text>
+              <TextInput
+                value={nuevoTitulo}
+                onChangeText={setNuevoTitulo}
+                placeholder="Ej. Mantenimiento de motobomba Torre A"
+                placeholderTextColor="#94A3B8"
+                style={estilos.inputAdmin}
+              />
+
+              <Text style={estilos.etiquetaCampo}>Contenido detallado</Text>
+              <TextInput
+                value={nuevoContenido}
+                onChangeText={setNuevoContenido}
+                placeholder="Escribe el detalle de horarios y recomendaciones para los residentes..."
+                placeholderTextColor="#94A3B8"
+                multiline
+                numberOfLines={3}
+                style={[estilos.inputAdmin, { minHeight: 76, textAlignVertical: 'top' }]}
+              />
+
+              {mensajeAdmin && (
+                <Text style={estilos.mensajeFeedbackAdmin}>{mensajeAdmin}</Text>
+              )}
+
+              <Pressable
+                onPress={publicarComunicadoAdmin}
+                disabled={publicando}
+                accessibilityRole="button"
+                accessibilityLabel="Publicar en Cartelera HU-08"
+                style={[estilos.btnPublicarAdmin, publicando && { opacity: 0.6 }]}
+              >
+                <Text style={estilos.btnPublicarAdminTexto}>
+                  {publicando ? 'Publicando comunicado...' : '📢 Publicar en Cartelera (HU-08)'}
+                </Text>
+              </Pressable>
             </View>
           )}
 
@@ -123,27 +223,90 @@ export default function PantallaComunidad() {
 const estilos = StyleSheet.create({
   contenedorPrincipal: { flex: 1, backgroundColor: COLORES.fondo },
   contenedor: { flex: 1, backgroundColor: COLORES.fondo },
-  barraModulos: {
-    flexDirection: 'row',
+  panelAdminAnuncio: {
     backgroundColor: COLORES.blanco,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    gap: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#CBD5E1',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1.5,
+    borderColor: COLORES.primario,
+    elevation: 3,
   },
-  tabModulo: {
-    flex: 1,
-    paddingVertical: 11,
-    borderRadius: 10,
+  tituloFormAdmin: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: COLORES.primario,
+  },
+  subtituloFormAdmin: {
+    fontSize: 12,
+    color: COLORES.textoGris,
+    marginTop: 2,
+    marginBottom: 12,
+  },
+  etiquetaCampo: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: COLORES.textoOscuro,
+    marginTop: 8,
+    marginBottom: 6,
+  },
+  filaCategorias: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 6,
+  },
+  chipCategoria: {
     backgroundColor: '#F1F5F9',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  chipCategoriaActiva: {
+    backgroundColor: COLORES.primario,
+    borderColor: COLORES.primario,
+  },
+  chipCategoriaTexto: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORES.textoOscuro,
+  },
+  chipCategoriaTextoActivo: {
+    color: COLORES.blanco,
+  },
+  inputAdmin: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: COLORES.textoOscuro,
+  },
+  mensajeFeedbackAdmin: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORES.primario,
+    marginTop: 10,
+  },
+  btnPublicarAdmin: {
+    backgroundColor: COLORES.secundario,
+    paddingVertical: 13,
+    paddingHorizontal: 14,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 14,
     minHeight: 48,
   },
-  tabModuloActivo: { backgroundColor: COLORES.primario },
-  textoModulo: { fontSize: 13, fontWeight: '800', color: COLORES.textoOscuro },
-  textoModuloActivo: { color: COLORES.blanco },
+  btnPublicarAdminTexto: {
+    color: COLORES.blanco,
+    fontWeight: '800',
+    fontSize: 14,
+  },
   badgeOffline: {
     backgroundColor: '#FEF9C3',
     padding: 12,
@@ -247,3 +410,4 @@ const estilos = StyleSheet.create({
     lineHeight: 19,
   },
 });
+

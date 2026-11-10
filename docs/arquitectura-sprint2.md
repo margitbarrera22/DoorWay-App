@@ -29,6 +29,9 @@
 | **5** | Cancelación evaluada por regla de 24h | Residente con reserva activa | `puedeCancelarCon24h()` verifica si faltan ≥ 24h; si cumple, cambia estado a `'Cancelada'` y libera el bloque. | HU-06 (#6) |
 | **6** | Cartelera y directorio sincronizados en SQLite | Residente al abrir `/comunidad` | Descarga anuncios de Supabase a `anuncios_cache` o sirve `anuncios_cache` + `directorio_emergencias` en Modo Avión. | HU-08 (#8), HU-11 (#11), TEC-05 (#17) |
 | **7** | Llamada de emergencia iniciada | Residente en `/comunidad` | Dispara `Linking.openURL('tel:...')` hacia Portería, Policía, Bomberos o ESSA/Aguas de Barrancabermeja. | HU-11 (#11) |
+| **8** | Aviso de privacidad aceptado (Ley 1581) | Residente en su 1.ª sesión (`aceptoLey1581 = false`) | Despliega `ModalPrivacidadLey1581` y actualiza `acepto_ley1581 = true` en Supabase (`usuarios`) y en `sesion_activa` (SQLite). | HU-01 (#1), Ley 1581 |
+| **9** | Comunicado oficial publicado por Admin | Administrador desde `/comunidad` | Invoca `crearAnuncioAdmin()`, inserta en tabla `anuncios` de Supabase y actualiza `anuncios_cache` en SQLite. | HU-08 (#8) |
+
 
 ---
 

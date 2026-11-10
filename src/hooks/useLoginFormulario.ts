@@ -46,6 +46,32 @@ export function useLoginFormulario() {
     }
   };
 
+  const accesoRapidoResidente = async () => {
+    setApartamento('martha@doorway.com');
+    setPassword('3020');
+    setCargando(true);
+    setErrorMensaje(null);
+    try {
+      const exito = await iniciarSesion('martha@doorway.com', '3020');
+      if (exito) router.replace('/');
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  const accesoRapidoAdmin = async () => {
+    setApartamento('admin@doorway.com');
+    setPassword('1234');
+    setCargando(true);
+    setErrorMensaje(null);
+    try {
+      const exito = await iniciarSesion('admin@doorway.com', '1234');
+      if (exito) router.replace('/');
+    } finally {
+      setCargando(false);
+    }
+  };
+
   return {
     apartamento,
     setApartamento,
@@ -54,5 +80,7 @@ export function useLoginFormulario() {
     cargando,
     errorMensaje,
     manejarSubmit,
+    accesoRapidoResidente,
+    accesoRapidoAdmin,
   };
 }
