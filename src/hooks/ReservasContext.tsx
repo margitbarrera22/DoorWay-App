@@ -1,6 +1,5 @@
 // src/hooks/ReservasContext.tsx — Autor: Wilfran Leonardo Betancourt Ardila (HU-05 #5, HU-02 #2 y HU-06 #6)
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { Share } from 'react-native';
 import { AreaComun, BloqueHorario, Reserva } from '../domain/modelos';
 import {
   evaluarDerechoAReservar,
@@ -9,6 +8,7 @@ import {
 } from '../domain/reglasNegocio';
 import { IReservasRepository } from '../data/contratos';
 import { RepositorioReservasSupabase } from '../data/RepositorioReservas';
+import { compartirTicketWhatsApp } from '../data/compartirTicketWhatsApp';
 import { useRecibos } from './RecibosContext';
 
 export const FECHAS_DEMO_RESERVAS = ['2026-11-15', '2026-11-16', '2026-11-17'];
@@ -139,19 +139,7 @@ export function ReservasProvider({
   }
 
   async function compartirTicketPorWhatsApp(reserva: Reserva) {
-    const mensaje =
-      `🚪 *DOORWAY-APP · TICKET DE RESERVA CONFIRMADA*\n` +
-      `• *Área común:* ${reserva.areaComun}\n` +
-      `• *Apartamento:* ${reserva.apartamento}\n` +
-      `• *Fecha:* ${reserva.fecha}\n` +
-      `• *Horario:* ${reserva.bloqueHorario}\n` +
-      `• *Código de verificación:* ${reserva.id}\n` +
-      `✅ _Estado de cartera verificado al día (Sin mora activa)._`;
-
-    await Share.share({
-      message: mensaje,
-      title: 'Comprobante de Reserva DoorWay-App',
-    });
+    await compartirTicketWhatsApp(reserva);
   }
 
   return (

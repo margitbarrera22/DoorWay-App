@@ -1,65 +1,37 @@
-// src/app/comunidad.tsx — Autor: Wilfran Leonardo Betancourt Ardila (HU-08 #8 y HU-11 #11)
-import React from 'react';
+// src/app/comunidad.tsx — Autores: Margit Dayanna Barrera Gutiérrez & Wilfran Leonardo Betancourt Ardila (HU-08 #8, HU-11 #11 y TEC-05 #17)
+import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable, Linking, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Anuncio, ContactoEmergencia } from '../domain/modelos';
+import { RepositorioComunidadHibrido } from '../data/RepositorioComunidadHibrido';
+import { EstadoPantalla } from '../components/EstadoPantalla';
 import { COLORES } from '../theme/tema';
 
-const DIRECTORIO_BARRANCABERMEJA = [
-  {
-    id: 'em-01',
-    entidad: 'Portería Principal · Conjunto La Nueva Esperanza',
-    telefono: '3158894021',
-    descripcion: 'Vigilancia interna, apertura de portón y control de visitantes.',
-  },
-  {
-    id: 'em-02',
-    entidad: 'Policía Nacional · Cuadrante Barrancabermeja',
-    telefono: '123',
-    descripcion: 'Atención inmediata de emergencias de seguridad y cuadrante.',
-  },
-  {
-    id: 'em-03',
-    entidad: 'Bomberos Voluntarios de Barrancabermeja',
-    telefono: '119',
-    descripcion: 'Incendios, fugas de gas, rescates e inundaciones.',
-  },
-  {
-    id: 'em-04',
-    entidad: 'Urgencias Servicios Públicos (Aguas / ESSA)',
-    telefono: '115',
-    descripcion: 'Reporte de daños eléctricos en torres o rotura de tuberías.',
-  },
-];
-
-const ANUNCIOS_INICIALES = [
-  {
-    id: 'anu-01',
-    categoria: 'Mantenimiento',
-    fecha: '2026-11-05',
-    titulo: 'Corte programado de agua por lavado de tanques',
-    contenido:
-      'Este sábado de 8:00 AM a 12:00 PM se realizará mantenimiento preventivo del tanque elevado de las Torres A y B.',
-  },
-  {
-    id: 'anu-02',
-    categoria: 'Asamblea',
-    fecha: '2026-11-04',
-    titulo: 'Asamblea extraordinaria de copropietarios',
-    contenido:
-      'Se cita a todos los residentes el próximo viernes a las 7:00 PM en el Salón Social para aprobar el presupuesto de seguridad.',
-  },
-  {
-    id: 'anu-03',
-    categoria: 'Seguridad',
-    fecha: '2026-11-03',
-    titulo: 'Control de ingreso vehicular en portería',
-    contenido:
-      'Recuerde anunciar a sus visitantes con anticipación y mantener al día su cuota de administración para uso del BBQ.',
-  },
-];
+const repoComunidad = new RepositorioComunidadHibrido();
 
 export default function PantallaComunidad() {
   const router = useRouter();
+  const [anuncios, setAnuncios] = useState<Anuncio[]>([]);
+  const [contactos, setContactos] = useState<ContactoEmergencia[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [modoOffline, setModoOffline] = useState(false);
+
+  async function cargarDatos() {
+    setCargando(true);
+    try {
+      const res = await repoComunidad.cargarComunidadCompleta();
+      setAnuncios(res.anuncios);
+      setContactos(res.contactos);
+      setModoOffline(res.desdeCacheSqlite);
+    } finally {
+      setCargando(false);
+    }
+  }
+
+  useEffect(() => {
+    cargarDatos();
+  }, []);
+
   const llamar = (telefono: string) => {
     Linking.openURL(`tel:${telefono}`);
   };
@@ -91,47 +63,59 @@ export default function PantallaComunidad() {
         </Pressable>
       </View>
 
-      <ScrollView style={estilos.contenedor} contentContainerStyle={{ padding: 18, paddingBottom: 40 }}>
-        {/* 1. Directorio de Emergencias Directo */}
-        <Text style={estilos.tituloSeccion}>🚨 Directorio de Emergencias · Barrancabermeja</Text>
-        <Text style={estilos.subtituloSeccion}>Llamada directa en un solo toque (HU-11)</Text>
-
-        {DIRECTORIO_BARRANCABERMEJA.map((contacto) => (
-          <View key={contacto.id} style={estilos.cardEmergencia}>
-            <View style={{ flex: 1, paddingRight: 10 }}>
-              <Text style={estilos.nombreEntidad}>{contacto.entidad}</Text>
-              <Text style={estilos.descEntidad}>{contacto.descripcion}</Text>
+      {cargando ? (
+        <EstadoPantalla tipo="cargando" mensaje="Cargando cartelera y directorio local..." />
+      ) : (
+        <ScrollView style={estilos.contenedor} contentContainerStyle={{ padding: 18, paddingBottom: 40 }}>
+          {modoOffline && (
+            <View style={estilos.badgeOffline} accessibilityRole="alert">
+              <Text style={estilos.badgeOfflineTexto}>
+                ✈️ Modo sin conexión activo: Leyendo Cartelera y Directorio desde SQLite local
+              </Text>
             </View>
-            <Pressable
-              onPress={() => llamar(contacto.telefono)}
-              accessibilityRole="button"
-              accessibilityLabel={`Llamar a ${contacto.entidad}`}
-              style={estilos.btnLlamar}
-            >
-              <Text style={estilos.btnLlamarTexto}>📞 {contacto.telefono}</Text>
-            </Pressable>
-          </View>
-        ))}
+          )}
 
-        {/* 2. Cartelera de Comunicados */}
-        <Text style={[estilos.tituloSeccion, { marginTop: 24 }]}>
-          📢 Cartelera Oficial de Administración
-        </Text>
-        <Text style={estilos.subtituloSeccion}>Comunicados y circulares del conjunto (HU-08)</Text>
+          {/* 1. Directorio de Emergencias Directo */}
+          <Text style={estilos.tituloSeccion}>🚨 Directorio de Emergencias · Barrancabermeja (HU-11)</Text>
+          <Text style={estilos.subtituloSeccion}>Llamada directa en un solo toque (Offline-First)</Text>
 
-        {ANUNCIOS_INICIALES.map((anuncio) => (
-          <View key={anuncio.id} style={estilos.cardAnuncio}>
-            <View style={estilos.filaMeta}>
-              <View style={estilos.badgeCategoria}>
-                <Text style={estilos.categoriaTexto}>{anuncio.categoria.toUpperCase()}</Text>
+          {contactos.map((contacto) => (
+            <View key={contacto.id} style={estilos.cardEmergencia}>
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <Text style={estilos.nombreEntidad}>{contacto.entidad}</Text>
+                <Text style={estilos.descEntidad}>{contacto.descripcion}</Text>
               </View>
-              <Text style={estilos.fechaTexto}>{anuncio.fecha}</Text>
+              <Pressable
+                onPress={() => llamar(contacto.telefono)}
+                accessibilityRole="button"
+                accessibilityLabel={`Llamar a ${contacto.entidad} al número ${contacto.telefono}`}
+                style={estilos.btnLlamar}
+              >
+                <Text style={estilos.btnLlamarTexto}>📞 {contacto.telefono}</Text>
+              </Pressable>
             </View>
-            <Text style={estilos.tituloAnuncio}>{anuncio.titulo}</Text>
-            <Text style={estilos.contenidoAnuncio}>{anuncio.contenido}</Text>
-          </View>
-        ))}
-      </ScrollView>
+          ))}
+
+          {/* 2. Cartelera de Comunicados */}
+          <Text style={[estilos.tituloSeccion, { marginTop: 24 }]}>
+            📢 Cartelera Oficial de Administración (HU-08)
+          </Text>
+          <Text style={estilos.subtituloSeccion}>Comunicados y circulares del conjunto</Text>
+
+          {anuncios.map((anuncio) => (
+            <View key={anuncio.id} style={estilos.cardAnuncio}>
+              <View style={estilos.filaMeta}>
+                <View style={estilos.badgeCategoria}>
+                  <Text style={estilos.categoriaTexto}>{anuncio.categoria.toUpperCase()}</Text>
+                </View>
+                <Text style={estilos.fechaTexto}>{anuncio.fechaPublicacion}</Text>
+              </View>
+              <Text style={estilos.tituloAnuncio}>{anuncio.titulo}</Text>
+              <Text style={estilos.contenidoAnuncio}>{anuncio.contenido}</Text>
+            </View>
+          ))}
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -160,6 +144,19 @@ const estilos = StyleSheet.create({
   tabModuloActivo: { backgroundColor: COLORES.primario },
   textoModulo: { fontSize: 13, fontWeight: '800', color: COLORES.textoOscuro },
   textoModuloActivo: { color: COLORES.blanco },
+  badgeOffline: {
+    backgroundColor: '#FEF9C3',
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#854D0E',
+  },
+  badgeOfflineTexto: {
+    color: '#854D0E',
+    fontWeight: '700',
+    fontSize: 13,
+  },
   tituloSeccion: {
     fontSize: 17,
     fontWeight: '800',
