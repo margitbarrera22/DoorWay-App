@@ -24,6 +24,10 @@ export default function RootLayout() {
               options={{ title: 'DoorWay · Cartera y Módulos' }}
             />
             <Stack.Screen
+              name="login"
+              options={{ title: 'Iniciar Sesión · DoorWay', headerShown: false }}
+            />
+            <Stack.Screen
               name="recibo/[id]"
               options={{ title: 'Detalle del Recibo' }}
             />

@@ -1,4 +1,4 @@
-// src/hooks/AuthContext.tsx — Autor: Wilfran Leonardo Betancourt Ardila (Elemento Transversal #2 · Login y Sesión SQLite)
+// src/hooks/AuthContext.tsx — Autores: Wilfran Leonardo Betancourt Ardila & Said Alexander Pacheco Moncada (Elemento Transversal #2 · Login y Sesión SQLite)
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UsuarioSesion } from '../domain/modelos';
 import { IAuthRepository } from '../data/contratos';
@@ -6,6 +6,7 @@ import { RepositorioAuthHibrido } from '../data/RepositorioAuth';
 
 export interface AuthContextType {
   usuarioActual: UsuarioSesion | null;
+  estaAutenticado: boolean;
   cargandoSesion: boolean;
   errorAuth: string | null;
   iniciarSesion: (correo: string, pin: string) => Promise<boolean>;
@@ -81,6 +82,7 @@ export function AuthProvider({ children, repositorio = repositorioPorDefecto }: 
     <AuthContext.Provider
       value={{
         usuarioActual,
+        estaAutenticado: usuarioActual !== null,
         cargandoSesion,
         errorAuth,
         iniciarSesion,
