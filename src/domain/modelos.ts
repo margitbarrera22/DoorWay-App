@@ -51,6 +51,17 @@ export interface ContactoEmergencia {
   disponible24h: boolean;
 }
 
+export type RolUsuario = 'residente' | 'admin';
+
+export interface UsuarioSesion {
+  id: string;
+  nombre: string;
+  correo: string;
+  rol: RolUsuario;
+  apartamento: string;
+  aceptoLey1581: boolean;
+}
+
 export function tieneMoraActiva(recibos: Recibo[]): boolean {
   return recibos.some((r) => r.estado === 'En mora');
 }
@@ -120,55 +131,58 @@ export const RECIBOS_SEMILLA: Recibo[] = [
 
 export const ANUNCIOS_SEMILLA: Anuncio[] = [
   {
-    id: 'anuncio-01',
-    titulo: 'Mantenimiento del Tanque de Agua',
-    contenido: 'El próximo martes habrá corte programado de 8:00 AM a 2:00 PM por lavado y desinfección de tanques de la torre.',
+    id: 'anu-01',
+    titulo: 'Corte programado de agua por lavado de tanques',
+    contenido:
+      'Este sábado de 8:00 AM a 12:00 PM se realizará mantenimiento preventivo del tanque elevado de las Torres A y B.',
     categoria: 'Mantenimiento',
     fechaPublicacion: '2026-11-05',
   },
   {
-    id: 'anuncio-02',
-    titulo: 'Asamblea Extraordinaria de Copropietarios',
-    contenido: 'Convocatoria a reunión obligatoria el sábado 15 de Noviembre en el Salón Social a las 4:00 PM.',
+    id: 'anu-02',
+    titulo: 'Asamblea extraordinaria de copropietarios',
+    contenido:
+      'Se cita a todos los residentes el próximo viernes a las 7:00 PM en el Salón Social para aprobar el presupuesto de seguridad.',
     categoria: 'Asamblea',
     fechaPublicacion: '2026-11-04',
   },
   {
-    id: 'anuncio-03',
-    titulo: 'Horarios de Áreas Comunes y Convivencia',
-    contenido: 'Recordamos a los residentes respetar los horarios del Kiosco BBQ y Salón Social hasta las 11:00 PM para mantener la tranquilidad.',
-    categoria: 'Convivencia',
-    fechaPublicacion: '2026-11-01',
+    id: 'anu-03',
+    titulo: 'Control de ingreso vehicular en portería',
+    contenido:
+      'Recuerde anunciar a sus visitantes con anticipación y mantener al día su cuota de administración para uso del BBQ.',
+    categoria: 'Seguridad',
+    fechaPublicacion: '2026-11-03',
   },
 ];
 
 export const DIRECTORIO_EMERGENCIAS_SEMILLA: ContactoEmergencia[] = [
   {
-    id: 'cont-01',
-    entidad: 'Policía Nacional (Cuadrante)',
+    id: 'em-01',
+    entidad: 'Portería Principal · Conjunto La Nueva Esperanza',
+    telefono: '3158894021',
+    descripcion: 'Vigilancia interna, apertura de portón y control de visitantes.',
+    disponible24h: true,
+  },
+  {
+    id: 'em-02',
+    entidad: 'Policía Nacional · Cuadrante Barrancabermeja',
     telefono: '123',
-    descripcion: 'Atención de emergencias y seguridad del cuadrante del sector',
+    descripcion: 'Atención inmediata de emergencias de seguridad y convivencia ciudadana.',
     disponible24h: true,
   },
   {
-    id: 'cont-02',
-    entidad: 'Bomberos Voluntarios Barrancabermeja',
+    id: 'em-03',
+    entidad: 'Bomberos Voluntarios de Barrancabermeja',
     telefono: '119',
-    descripcion: 'Rescate, control de incendios e inundaciones en el municipio',
+    descripcion: 'Incendios, fugas de gas, rescates e inundaciones en áreas comunes.',
     disponible24h: true,
   },
   {
-    id: 'cont-03',
-    entidad: 'Gasoriente / ESSA Emergencias',
-    telefono: '164',
-    descripcion: 'Fugas de gas domiciliario y fallas del sistema eléctrico',
-    disponible24h: true,
-  },
-  {
-    id: 'cont-04',
-    entidad: 'Portería Barrio Nueva Esperanza',
-    telefono: '3109876543',
-    descripcion: 'Control de acceso, recepción de paquetes y vigilancia 24/7',
+    id: 'em-04',
+    entidad: 'Urgencias de Servicios Públicos (ESSA / Aguas de Barrancabermeja)',
+    telefono: '115',
+    descripcion: 'Reporte de daños eléctricos en torres o rotura de tuberías matrices.',
     disponible24h: true,
   },
 ];
