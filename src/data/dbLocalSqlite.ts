@@ -140,16 +140,13 @@ export class DbLocalSqliteRepository implements IRecibosRepository {
     if (!this.db) {
       throw new Error('No se pudo conectar con la base de datos SQLite local');
     }
-    let resultado = await this.db.getAllAsync<Recibo>(
+    // Siempre aplica la semilla:
+    // - INSERT OR IGNORE → no pisa datos reales del residente (comprobanteUrl, estado, etc.)
+    // - Paso 2 en insertarSemilla → rellena URLs demo si el local tiene NULL
+    await this.insertarSemilla(RECIBOS_SEMILLA);
+    return await this.db.getAllAsync<Recibo>(
       'SELECT * FROM recibos_local ORDER BY fechaVencimiento DESC;'
     );
-    if (resultado.length === 0) {
-      await this.insertarSemilla(RECIBOS_SEMILLA);
-      resultado = await this.db.getAllAsync<Recibo>(
-        'SELECT * FROM recibos_local ORDER BY fechaVencimiento DESC;'
-      );
-    }
-    return resultado;
   }
 
   async obtenerPorId(id: string): Promise<Recibo | null> {
@@ -170,9 +167,15 @@ export class DbLocalSqliteRepository implements IRecibosRepository {
       throw new Error('No se pudo conectar con la base de datos SQLite local');
     }
 
+    // Al subir un nuevo comprobante, se pasa a 'En validación' y se limpia la observación previa del admin
     await this.db.runAsync(
-      `UPDATE recibos_local SET estado = ?, referenciaBancaria = ?, comprobanteUrl = ? WHERE id = ?;`,
-      ['En validación', referencia, uriFotoLocal, idRecibo]
+      `UPDATE recibos_local 
+       SET estado = 'En validación', 
+           referenciaBancaria = ?, 
+           comprobanteUrl = ?, 
+           observacionAdmin = NULL 
+       WHERE id = ?;`,
+      [referencia, uriFotoLocal, idRecibo]
     );
 
     const actualizado = await this.obtenerPorId(idRecibo);
@@ -204,8 +207,10 @@ export class DbLocalSqliteRepository implements IRecibosRepository {
     if (!this.db) await this.inicializarBaseDatos();
     if (!this.db) return;
     for (const r of recibos) {
+      // INSERT OR IGNORE: nunca sobreescribe registros existentes.
+      // Preserva comprobanteUrl, referenciaBancaria y estado que el residente ya guardó.
       await this.db.runAsync(
-        `INSERT OR REPLACE INTO recibos_local (id, apartamento, residenteNombre, periodo, monto, fechaVencimiento, estado, referenciaBancaria, comprobanteUrl, observacionAdmin)
+        `INSERT OR IGNORE INTO recibos_local (id, apartamento, residenteNombre, periodo, monto, fechaVencimiento, estado, referenciaBancaria, comprobanteUrl, observacionAdmin)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         [
           r.id,

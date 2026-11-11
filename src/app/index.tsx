@@ -1,17 +1,27 @@
-// src/app/index.tsx — Autor: Wilfran Leonardo Betancourt Ardila (HU-03 #3)
+// src/app/index.tsx — Lógica: Wilfran Betancourt | UX/UI: Margit Barrera
 import React, { useState } from 'react';
-import { View, FlatList, Text, Pressable, StyleSheet } from 'react-native';
+import { View, FlatList, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useFonts, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold, Inter_900Black } from '@expo-google-fonts/inter';
+import { Ionicons } from '@expo/vector-icons';
 import { useRecibos } from '../hooks/RecibosContext';
 import { TarjetaRecibo } from '../components/TarjetaRecibo';
 import { EstadoPantalla } from '../components/EstadoPantalla';
-import { COLORES } from '../theme/tema';
 import { evaluarDerechoAReservar } from '../domain/reglasNegocio';
+import { BarraNavegacionModulos } from '../components/BarraNavegacionModulos';
 
 export default function PantallaEstadoCuenta() {
   const router = useRouter();
   const { recibos, estadoVista, mensajeError, cargar, modoAdmin, alternarModoAdmin } = useRecibos();
   const [refrescando, setRefrescando] = useState(false);
+
+  const [fontsLoaded] = useFonts({
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    Inter_800ExtraBold,
+    Inter_900Black,
+  });
 
   const alRefrescar = async () => {
     setRefrescando(true);
@@ -21,40 +31,27 @@ export default function PantallaEstadoCuenta() {
 
   const veredictoMora = evaluarDerechoAReservar(recibos);
 
+  if (!fontsLoaded) {
+    return <ActivityIndicator size="large" color="#0F2540" style={{ flex: 1, justifyContent: 'center' }} />;
+  }
+
   return (
     <View style={estilos.contenedor}>
-      {/* 1. Barra de Navegación de Módulos (Nivel Superior) */}
-      <View style={estilos.barraModulos}>
-        <Pressable
-          accessibilityRole="tab"
-          accessibilityState={{ selected: true }}
-          style={[estilos.tabModulo, estilos.tabModuloActivo]}
-        >
-          <Text style={[estilos.textoModulo, estilos.textoModuloActivo]}>💳 Cartera</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="tab"
-          onPress={() => router.push('/reservas')}
-          style={estilos.tabModulo}
-        >
-          <Text style={estilos.textoModulo}>📅 Reservas</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="tab"
-          onPress={() => router.push('/comunidad')}
-          style={estilos.tabModulo}
-        >
-          <Text style={estilos.textoModulo}>📢 Comunidad</Text>
-        </Pressable>
-      </View>
-
-      {/* 2. Barra de Rol y Contexto de Usuario */}
+      {/* Barra de Rol */}
       <View style={estilos.barraRol}>
         <View style={{ flex: 1 }}>
           <Text style={estilos.subtituloRol}>SESIÓN ACTIVA</Text>
-          <Text style={estilos.textoRol}>
-            {modoAdmin ? '🛡️ Administrador General' : '👤 Residente: Doña Martha (302)'}
-          </Text>
+          <View style={estilos.filaRol}>
+            <Ionicons
+              name={modoAdmin ? "shield-checkmark" : "person"}
+              size={16}
+              color={modoAdmin ? "#0F2540" : "#475569"}
+              style={{ marginRight: 6 }}
+            />
+            <Text style={estilos.textoRol}>
+              {modoAdmin ? 'Administrador General' : 'Residente: Doña Martha (302)'}
+            </Text>
+          </View>
         </View>
         <Pressable
           onPress={alternarModoAdmin}
@@ -66,19 +63,26 @@ export default function PantallaEstadoCuenta() {
         </Pressable>
       </View>
 
-      {/* 3. Indicador de Estado de Mora (HU-02 Regla de Negocio) */}
+      {/* Banner de Mora */}
       {!modoAdmin && recibos.length > 0 && (
         <View style={veredictoMora.permitido ? estilos.bannerAlDia : estilos.bannerMora}>
+          <Ionicons
+            name={veredictoMora.permitido ? "checkmark-circle" : "alert-circle"}
+            size={20}
+            color={veredictoMora.permitido ? "#166534" : "#991B1B"}
+            style={{ marginRight: 10 }}
+          />
           <Text style={veredictoMora.permitido ? estilos.bannerAlDiaTexto : estilos.bannerMoraTexto}>
             {veredictoMora.permitido
-              ? '✅ Estado al día · Tienes derecho a reservar áreas comunes'
-              : `⚠️ ${veredictoMora.motivoBloqueo}`}
+              ? 'Estado al día · Tienes derecho a reservar áreas comunes'
+              : veredictoMora.motivoBloqueo}
           </Text>
         </View>
       )}
 
-      {/* 4. Estados de la Pantalla */}
+      {/* Estados de la pantalla */}
       {estadoVista === 'cargando' && <EstadoPantalla tipo="cargando" />}
+
       {estadoVista === 'error' && (
         <EstadoPantalla
           tipo="error"
@@ -87,6 +91,7 @@ export default function PantallaEstadoCuenta() {
           alPresionarBoton={cargar}
         />
       )}
+
       {estadoVista === 'vacio' && (
         <EstadoPantalla
           tipo="vacio"
@@ -95,18 +100,19 @@ export default function PantallaEstadoCuenta() {
           alPresionarBoton={() => router.push('/recibo/subir')}
         />
       )}
+
       {estadoVista === 'conDatos' && (
         <FlatList
           data={recibos}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+          contentContainerStyle={estilos.lista}
           refreshing={refrescando}
           onRefresh={alRefrescar}
           ListHeaderComponent={
             <View style={estilos.headerLista}>
-              <Text style={estilos.tituloSeccion}>Historial de Facturación y Recibos</Text>
+              <Text style={estilos.tituloSeccion}>Historial de Facturación</Text>
               <Text style={estilos.contadorRecibos}>
-                {recibos.length} {recibos.length === 1 ? 'recibo' : 'recibos'}
+                {String(recibos.length) + ' ' + (recibos.length === 1 ? 'recibo' : 'recibos')}
               </Text>
             </View>
           }
@@ -118,66 +124,45 @@ export default function PantallaEstadoCuenta() {
           )}
         />
       )}
+
+      <BarraNavegacionModulos />
     </View>
   );
 }
 
 const estilos = StyleSheet.create({
-  contenedor: { flex: 1, backgroundColor: COLORES.fondo },
-  barraModulos: {
-    flexDirection: 'row',
-    backgroundColor: COLORES.blanco,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    gap: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#CBD5E1',
-  },
-  tabModulo: {
-    flex: 1,
-    paddingVertical: 11,
-    borderRadius: 10,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 48,
-  },
-  tabModuloActivo: {
-    backgroundColor: COLORES.primario,
-  },
-  textoModulo: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: COLORES.textoOscuro,
-  },
-  textoModuloActivo: {
-    color: COLORES.blanco,
-  },
+  contenedor: { flex: 1, backgroundColor: '#F8FAFC' },
   barraRol: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#EEF2F6',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: '#F1F5F9',
   },
   subtituloRol: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: COLORES.textoGris,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#94A3B8',
     letterSpacing: 0.8,
+    fontFamily: 'Inter_700Bold',
+    marginBottom: 4,
+  },
+  filaRol: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   textoRol: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: COLORES.primario,
-    marginTop: 2,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F2540',
+    fontFamily: 'Inter_700Bold',
   },
   btnRol: {
-    backgroundColor: COLORES.secundario,
-    paddingHorizontal: 14,
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
     minHeight: 44,
@@ -185,50 +170,67 @@ const estilos = StyleSheet.create({
     alignItems: 'center',
   },
   btnRolTexto: {
-    color: COLORES.blanco,
-    fontWeight: '800',
+    color: '#475569',
+    fontWeight: '700',
     fontSize: 13,
+    fontFamily: 'Inter_700Bold',
   },
   bannerAlDia: {
-    backgroundColor: COLORES.pagadoFondo,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#86EFAC',
   },
   bannerAlDiaTexto: {
-    color: COLORES.pagadoTexto,
-    fontSize: 13,
-    fontWeight: '700',
+    color: '#166534',
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
+    fontFamily: 'Inter_600SemiBold',
   },
   bannerMora: {
-    backgroundColor: COLORES.moraFondo,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#FCA5A5',
   },
   bannerMoraTexto: {
-    color: COLORES.moraTexto,
-    fontSize: 13,
-    fontWeight: '700',
-    lineHeight: 18,
+    color: '#991B1B',
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
+    lineHeight: 20,
+    fontFamily: 'Inter_600SemiBold',
   },
   headerLista: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
-    marginTop: 4,
+    marginBottom: 16,
+    marginTop: 8,
+    paddingHorizontal: 4,
   },
   tituloSeccion: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '800',
-    color: COLORES.primario,
+    color: '#0F2540',
+    fontFamily: 'Inter_800ExtraBold',
   },
   contadorRecibos: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: COLORES.textoGris,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748B',
+    fontFamily: 'Inter_600SemiBold',
+  },
+  lista: {
+    padding: 20,
+    paddingTop: 8,
+    paddingBottom: 32,
   },
 });

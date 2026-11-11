@@ -33,7 +33,8 @@
           "photosPermission": "DoorWay-App necesita acceso a tu galería para adjuntar comprobantes de pago.",
           "cameraPermission": "DoorWay-App necesita acceso a tu cámara para fotografiar el recibo o soporte bancario."
         }
-      ]
+      ],
+      "expo-font"
     ]
   }
 }

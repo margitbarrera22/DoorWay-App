@@ -1,440 +1,565 @@
-// src/app/reservas.tsx — Autor: Wilfran Leonardo Betancourt Ardila (HU-05 #5, HU-02 #2 y HU-06 #6)
-import React from 'react';
+// src/app/reservas.tsx — Calendario real + Reserva funcional | Wilfran + Margit
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
-import { AreaComun } from '../domain/modelos';
-import { useReservas, FECHAS_DEMO_RESERVAS } from '../hooks/ReservasContext';
-import { useAuth } from '../hooks/AuthContext';
-import { BannerMora } from '../components/BannerMora';
-import { SelectorBloques } from '../components/SelectorBloques';
-import { ModalTicketReserva } from '../components/ModalTicketReserva';
-import { COLORES } from '../theme/tema';
+import { Calendar, DateData } from 'react-native-calendars';
+import { useFonts, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold } from '@expo-google-fonts/inter';
+import { Ionicons } from '@expo/vector-icons';
+import { useRecibos } from '../hooks/RecibosContext';
+import { AreaComun, BloqueHorario, Reserva } from '../domain/modelos';
+import { evaluarDerechoAReservar } from '../domain/reglasNegocio';
+import { BarraNavegacionModulos } from '../components/BarraNavegacionModulos';
 
-const AREAS_DISPONIBLES: Array<{ nombre: AreaComun; icono: string; detalle: string }> = [
-  { nombre: 'Salón Social', icono: '🎉', detalle: 'Eventos y reuniones · Cap. 40 personas' },
-  { nombre: 'Kiosco BBQ', icono: '🍖', detalle: 'Zona parrillera al aire libre · Cap. 15 personas' },
-];
+// ── Repositorio local de reservas en SQLite (sin Supabase, funciona offline) ──
+import * as SQLite from 'expo-sqlite';
+
+const db = SQLite.openDatabaseSync('doorway_local.db');
+
+function inicializarTablaReservas() {
+  try {
+    db.execSync(`
+      CREATE TABLE IF NOT EXISTS reservas_local (
+        id TEXT PRIMARY KEY NOT NULL,
+        apartamento TEXT NOT NULL,
+        areaComun TEXT NOT NULL,
+        fecha TEXT NOT NULL,
+        bloqueHorario TEXT NOT NULL,
+        estado TEXT NOT NULL,
+        createdAt TEXT NOT NULL
+      );
+    `);
+  } catch {}
+}
+
+function guardarReservaLocal(r: Reserva): void {
+  inicializarTablaReservas();
+  db.runSync(
+    `INSERT OR REPLACE INTO reservas_local (id, apartamento, areaComun, fecha, bloqueHorario, estado, createdAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?);`,
+    [r.id, r.apartamento, r.areaComun, r.fecha, r.bloqueHorario, r.estado, r.createdAt ?? new Date().toISOString()]
+  );
+}
+
+function leerReservasLocales(): Reserva[] {
+  inicializarTablaReservas();
+  const filas = db.getAllSync<any>('SELECT * FROM reservas_local ORDER BY createdAt DESC;');
+  return filas.map((f) => ({
+    id: f.id,
+    apartamento: f.apartamento,
+    areaComun: f.areaComun as AreaComun,
+    fecha: f.fecha,
+    bloqueHorario: f.bloqueHorario as BloqueHorario,
+    estado: f.estado as 'Confirmada' | 'Cancelada',
+    createdAt: f.createdAt,
+  }));
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+
+const AREAS: AreaComun[] = ['Salón Social', 'Kiosco BBQ'];
+const BLOQUES_OFICIALES: BloqueHorario[] = ['09:00 - 13:00', '14:00 - 18:00', '19:00 - 23:00'];
 
 export default function PantallaReservas() {
-  const router = useRouter();
-  const { usuarioActual } = useAuth();
-  const apartamentoActivo =
-    usuarioActual?.rol === 'residente' ? usuarioActual.apartamento : 'Torre B - Apto 302';
+  const { recibos, modoAdmin } = useRecibos();
+  const veredictoMora = evaluarDerechoAReservar(recibos);
 
-  const {
-    area,
-    setArea,
-    fecha,
-    setFecha,
-    bloqueSeleccionado,
-    setBloqueSeleccionado,
-    reservasDelDia,
-    ticketConfirmado,
-    cerrarTicket,
-    mensajeFeedback,
-    avisoCancelacion,
-    cargandoDisponibilidad,
-    guardando,
-    cancelando,
-    veredictoMora,
-    cargarDisponibilidad,
-    confirmarReserva,
-    intentarCancelar,
-    compartirTicketPorWhatsApp,
-  } = useReservas();
+  const [area, setArea] = useState<AreaComun>('Salón Social');
+  const [fecha, setFecha] = useState<string>('2026-11-15');
+  const [bloqueSeleccionado, setBloqueSeleccionado] = useState<BloqueHorario | null>(null);
+  const [mostrarCalendario, setMostrarCalendario] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [errorGuardar, setErrorGuardar] = useState('');
+  const [reservasGuardadas, setReservasGuardadas] = useState<Reserva[]>([]);
+  const [reservaReciente, setReservaReciente] = useState<Reserva | null>(null);
 
-  const misReservasActivas = reservasDelDia.filter(
-    (r) => r.apartamento === apartamentoActivo && r.estado === 'Confirmada'
-  );
+  const [fontsLoaded] = useFonts({
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    Inter_800ExtraBold,
+  });
+
+  // Carga historial al abrir y al cambiar de rol
+  useEffect(() => {
+    setReservasGuardadas(leerReservasLocales());
+  }, [modoAdmin]);
+
+  const estaOcupadoPorOtro = (b: BloqueHorario) => {
+    // Bloqueo demo hardcodeado (simulación de otro residente)
+    if (area === 'Salón Social' && fecha === '2026-11-15' && b === '14:00 - 18:00') return true;
+    // Bloquea franjas que ya están confirmadas en la lista local
+    return reservasGuardadas.some(
+      (r) => r.areaComun === area && r.fecha === fecha && r.bloqueHorario === b && r.estado === 'Confirmada'
+    );
+  };
+
+  const onDayPress = (day: DateData) => {
+    setFecha(day.dateString);
+    setBloqueSeleccionado(null);
+    setMostrarCalendario(false);
+  };
+
+  const markedDates = {
+    [fecha]: { selected: true, selectedColor: '#0F2540' },
+    '2026-11-15': { marked: true, dotColor: '#FCA5A5' },
+    '2026-11-16': { marked: true, dotColor: '#86EFAC' },
+    '2026-11-17': { marked: true, dotColor: '#86EFAC' },
+  };
+
+  const confirmarReserva = async () => {
+    if ((!modoAdmin && !veredictoMora.permitido) || !bloqueSeleccionado) return;
+    setGuardando(true);
+    setErrorGuardar('');
+    try {
+      const nueva: Reserva = {
+        id: `res-${Date.now()}`,
+        apartamento: modoAdmin ? 'Administración' : 'Torre B - Apto 302',
+        areaComun: area,
+        fecha,
+        bloqueHorario: bloqueSeleccionado,
+        estado: 'Confirmada',
+        createdAt: new Date().toISOString(),
+      };
+      guardarReservaLocal(nueva);
+      const actualizadas = leerReservasLocales();
+      setReservasGuardadas(actualizadas);
+      setReservaReciente(nueva);
+      setBloqueSeleccionado(null);
+      // Oculta el banner de éxito después de 4 segundos
+      setTimeout(() => setReservaReciente(null), 4000);
+    } catch (e: any) {
+      setErrorGuardar(e?.message || 'No se pudo guardar la reserva.');
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  if (!fontsLoaded) {
+    return <ActivityIndicator size="large" color="#0F2540" style={{ flex: 1, justifyContent: 'center' }} />;
+  }
 
   return (
-    <View style={estilos.contenedorPrincipal}>
-      {/* Barra de Navegación Modular Persistente */}
-      <View style={estilos.barraModulos}>
-        <Pressable
-          accessibilityRole="tab"
-          onPress={() => router.push('/')}
-          style={estilos.tabModulo}
-        >
-          <Text style={estilos.textoModulo}>💳 Cartera</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="tab"
-          accessibilityState={{ selected: true }}
-          style={[estilos.tabModulo, estilos.tabModuloActivo]}
-        >
-          <Text style={[estilos.textoModulo, estilos.textoModuloActivo]}>📅 Reservas</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="tab"
-          onPress={() => router.push('/comunidad')}
-          style={estilos.tabModulo}
-        >
-          <Text style={estilos.textoModulo}>📢 Comunidad</Text>
-        </Pressable>
+    <View style={estilos.contenedor}>
+      {/* Header */}
+      <View style={estilos.header}>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={estilos.headerTitle}>
+            {modoAdmin ? 'Gestión de Áreas Comunes' : 'Reservar Área Común'}
+          </Text>
+          <Text style={estilos.headerSub}>
+            {modoAdmin ? 'Panel de Administración · Calendario de copropiedad' : 'Agenda de áreas comunes · DoorWay'}
+          </Text>
+        </View>
       </View>
 
-      <ScrollView style={estilos.contenedor} contentContainerStyle={{ padding: 16, paddingBottom: 36 }}>
-        {/* Encabezado de Unidad y Sincronización */}
-        <View style={estilos.headerUnidad}>
-          <View style={{ flex: 1 }}>
-            <Text style={estilos.etiquetaUnidad}>UNIDAD SOLICITANTE</Text>
-            <Text style={estilos.valorUnidad}>🏢 {apartamentoActivo}</Text>
-          </View>
-          <Pressable
-            onPress={cargarDisponibilidad}
-            accessibilityRole="button"
-            accessibilityLabel="Actualizar disponibilidad del calendario"
-            style={estilos.btnRefrescar}
-          >
-            <Text style={estilos.btnRefrescarTexto}>
-              {cargandoDisponibilidad ? '⏳...' : '🔄 Actualizar'}
-            </Text>
-          </Pressable>
-        </View>
+      <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
 
-        {/* 1. Alerta de Bloqueo por Mora Activa (HU-02 · Componente Oficial de Margit) */}
-        {!veredictoMora.permitido ? (
-          <BannerMora
-            mensaje={veredictoMora.motivoBloqueo!}
-            alIrACartera={() => router.push('/')}
-          />
-        ) : (
+        {/* Banner de éxito reciente */}
+        {reservaReciente && (
+          <View style={estilos.bannerExito}>
+            <Ionicons name="checkmark-circle" size={22} color="#166534" style={{ marginRight: 10 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={estilos.bannerExitoTitulo}>¡Reserva confirmada!</Text>
+              <Text style={estilos.bannerExitoDetalle}>
+                {reservaReciente.areaComun} · {reservaReciente.fecha} · {reservaReciente.bloqueHorario}
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Error al guardar */}
+        {errorGuardar !== '' && (
+          <View style={estilos.bannerError}>
+            <Ionicons name="alert-circle" size={18} color="#991B1B" style={{ marginRight: 8 }} />
+            <Text style={estilos.bannerErrorTexto}>{errorGuardar}</Text>
+          </View>
+        )}
+
+        {/* Banner para Modo Administrador */}
+        {modoAdmin && (
+          <View style={estilos.bannerAdmin}>
+            <Ionicons name="shield-checkmark" size={20} color="#0F2540" style={{ marginRight: 10 }} />
+            <Text style={estilos.bannerAdminTexto}>
+              Modo Administrador · Consulta de reservas y disponibilidad de la copropiedad.
+            </Text>
+          </View>
+        )}
+
+        {/* Banner mora / al día SOLO PARA EL RESIDENTE */}
+        {!modoAdmin && !veredictoMora.permitido && (
+          <View style={estilos.bannerMora}>
+            <Ionicons name="alert-circle" size={22} color="#991B1B" style={{ marginRight: 12 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={estilos.bannerMoraTitulo}>Reserva Bloqueada</Text>
+              <Text style={estilos.bannerMoraDesc}>{veredictoMora.motivoBloqueo}</Text>
+            </View>
+          </View>
+        )}
+
+        {!modoAdmin && veredictoMora.permitido && !reservaReciente && (
           <View style={estilos.bannerAlDia}>
+            <Ionicons name="checkmark-circle" size={20} color="#166534" style={{ marginRight: 10 }} />
             <Text style={estilos.bannerAlDiaTexto}>
-              ✅ Cartera al día · Sin mora activa. Puedes reservar sin restricciones.
+              ¡Estás al día! Tienes habilitado el sistema de reservas.
             </Text>
           </View>
         )}
 
-        {/* 2. Selector de Área Común */}
-        <Text style={estilos.label}>1. Selecciona el Área Común</Text>
-        <View style={estilos.filaBotones}>
-          {AREAS_DISPONIBLES.map((item) => {
-            const activa = area === item.nombre;
-            return (
-              <Pressable
-                key={item.nombre}
-                onPress={() => setArea(item.nombre)}
-                accessibilityRole="button"
-                style={[estilos.cardArea, activa && estilos.cardAreaActiva]}
+        {/* ── HISTORIAL DE RESERVAS ── */}
+        {reservasGuardadas.length > 0 && (
+          <View style={estilos.seccionHistorial}>
+            <View style={estilos.filaSeccion}>
+              <Ionicons name="list" size={18} color="#0F2540" style={{ marginRight: 8 }} />
+              <Text style={estilos.tituloSeccion}>
+                {modoAdmin ? 'Reservas registradas' : 'Mis reservas'}
+              </Text>
+              <View style={estilos.badgeContador}>
+                <Text style={estilos.badgeContadorTexto}>{reservasGuardadas.length}</Text>
+              </View>
+            </View>
+
+            {reservasGuardadas.map((r) => (
+              <View
+                key={r.id}
+                style={[
+                  estilos.cardReserva,
+                  r.estado === 'Cancelada' && estilos.cardReservaCancelada,
+                ]}
               >
-                <Text style={estilos.iconoArea}>{item.icono}</Text>
-                <Text style={[estilos.tituloArea, activa && estilos.textoBlanco]}>
-                  {item.nombre}
-                </Text>
-                <Text style={[estilos.detalleArea, activa && estilos.textoBlancoSuave]}>
-                  {item.detalle}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {/* 3. Selector de Fecha */}
-        <Text style={estilos.label}>2. Elige la fecha en el calendario</Text>
-        <View style={estilos.filaBotones}>
-          {FECHAS_DEMO_RESERVAS.map((f) => {
-            const activa = fecha === f;
-            return (
-              <Pressable
-                key={f}
-                onPress={() => setFecha(f)}
-                accessibilityRole="button"
-                style={[estilos.chip, activa && estilos.chipActivo]}
-              >
-                <Text style={[estilos.chipTexto, activa && estilos.chipTextoActivo]}>📅 {f}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {/* 4. Calendario Cromático (HU-05 · Componente Oficial de Margit) */}
-        {cargandoDisponibilidad ? (
-          <View style={estilos.cajaCargando}>
-            <ActivityIndicator size="small" color={COLORES.primario} />
-            <Text style={estilos.textoCargando}>Consultando disponibilidad en Supabase...</Text>
-          </View>
-        ) : (
-          <SelectorBloques
-            reservasDelDia={reservasDelDia}
-            bloqueSeleccionado={bloqueSeleccionado}
-            alSeleccionarBloque={setBloqueSeleccionado}
-            deshabilitadoPorMora={!veredictoMora.permitido}
-          />
-        )}
-
-        {/* 5. Mensajes de Retroalimentación / Anti-colisión / Cancelación */}
-        {(mensajeFeedback || avisoCancelacion) && (
-          <View
-            style={[
-              estilos.alertaBox,
-              avisoCancelacion?.includes('éxito') && estilos.alertaExitoBox,
-            ]}
-          >
-            <Text
-              style={[
-                estilos.alertaTexto,
-                avisoCancelacion?.includes('éxito') && estilos.alertaExitoTexto,
-              ]}
-            >
-              {mensajeFeedback || avisoCancelacion}
-            </Text>
-          </View>
-        )}
-
-        {/* 6. Botón de Confirmar Reserva */}
-        <Pressable
-          disabled={!veredictoMora.permitido || !bloqueSeleccionado || guardando}
-          onPress={() => confirmarReserva(apartamentoActivo)}
-          accessibilityRole="button"
-          style={[
-            estilos.btnConfirmar,
-            (!veredictoMora.permitido || !bloqueSeleccionado || guardando) && { opacity: 0.45 },
-          ]}
-        >
-          <Text style={estilos.btnConfirmarTexto}>
-            {guardando
-              ? 'Verificando disponibilidad sin colisión...'
-              : bloqueSeleccionado
-              ? `Confirmar Reserva · ${area} (${bloqueSeleccionado})`
-              : 'Confirmar Reserva sin Colisión'}
-          </Text>
-        </Pressable>
-
-        {/* 7. Mis Reservas Activas con Cancelación >24h (HU-06) */}
-        {misReservasActivas.length > 0 && (
-          <View style={estilos.seccionMisReservas}>
-            <Text style={estilos.tituloMisReservas}>📌 Tus reservas confirmadas en esta fecha</Text>
-            {misReservasActivas.map((miRes) => (
-              <View key={miRes.id} style={estilos.miReservaBox}>
-                <View style={{ marginBottom: 10 }}>
-                  <Text style={estilos.miReservaTexto}>
-                    ✅ {miRes.areaComun} · {miRes.bloqueHorario}
+                <View style={estilos.iconoReserva}>
+                  <Ionicons
+                    name={r.areaComun === 'Salón Social' ? 'people' : 'restaurant'}
+                    size={20}
+                    color={r.estado === 'Confirmada' ? '#0F2540' : '#94A3B8'}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={estilos.cardReservaArea}>{r.areaComun}</Text>
+                  <Text style={estilos.cardReservaDetalle}>
+                    {r.fecha}  ·  {r.bloqueHorario}
                   </Text>
-                  <Text style={estilos.miReservaMeta}>
-                    Fecha: {miRes.fecha} · Ticket: {miRes.id}
+                  <Text style={estilos.cardReservaApto}>
+                    Apt. {r.apartamento}
                   </Text>
                 </View>
-                <View style={estilos.filaAccionesReserva}>
-                  <Pressable
-                    onPress={() => compartirTicketPorWhatsApp(miRes)}
-                    accessibilityRole="button"
-                    style={estilos.btnCompartirMini}
+                <View
+                  style={[
+                    estilos.badgeEstado,
+                    r.estado === 'Cancelada' ? estilos.badgeEstadoCancelada : estilos.badgeEstadoConfirmada,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      estilos.badgeEstadoTexto,
+                      { color: r.estado === 'Cancelada' ? '#991B1B' : '#166534' },
+                    ]}
                   >
-                    <Text style={estilos.btnCompartirMiniTexto}>📲 WhatsApp</Text>
-                  </Pressable>
-                  <Pressable
-                    disabled={cancelando}
-                    onPress={() => intentarCancelar(miRes)}
-                    accessibilityRole="button"
-                    style={estilos.btnCancelar}
-                  >
-                    <Text style={estilos.btnCancelarTexto}>
-                      {cancelando ? 'Cancelando...' : 'Cancelar turno (>24h · HU-06)'}
-                    </Text>
-                  </Pressable>
+                    {r.estado}
+                  </Text>
                 </View>
               </View>
             ))}
           </View>
         )}
 
-        {/* 8. Modal de Ticket Digital (HU-05 · Componente Oficial de Margit) */}
-        <ModalTicketReserva
-          reserva={ticketConfirmado}
-          alCerrar={cerrarTicket}
-          alCompartirWhatsApp={compartirTicketPorWhatsApp}
-        />
+        {/* ── FORMULARIO DE NUEVA RESERVA (solo residente) ── */}
+        {!modoAdmin && (
+          <View style={estilos.contenido}>
+            <Text style={estilos.tituloSeccion}>1. Selecciona el Área</Text>
+            <View style={estilos.filaChips}>
+              {AREAS.map((item) => {
+                const activo = area === item;
+                return (
+                  <Pressable
+                    key={item}
+                    onPress={() => { setArea(item); setBloqueSeleccionado(null); }}
+                    accessibilityRole="button"
+                    style={[estilos.chip, activo && estilos.chipActivo]}
+                  >
+                    <Ionicons
+                      name={item === 'Salón Social' ? 'people' : 'restaurant'}
+                      size={18}
+                      color={activo ? '#FFF' : '#64748B'}
+                      style={{ marginRight: 8 }}
+                    />
+                    <Text style={[estilos.chipTexto, activo && estilos.chipTextoActivo]}>{item}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <Text style={estilos.tituloSeccion}>2. Elige la Fecha</Text>
+            <Pressable
+              onPress={() => setMostrarCalendario(!mostrarCalendario)}
+              accessibilityRole="button"
+              style={estilos.btnCalendario}
+            >
+              <Ionicons name="calendar" size={20} color="#0F2540" style={{ marginRight: 10 }} />
+              <Text style={estilos.btnCalendarioTexto}>{fecha}</Text>
+              <Ionicons name={mostrarCalendario ? 'chevron-up' : 'chevron-down'} size={20} color="#0F2540" style={{ marginLeft: 10 }} />
+            </Pressable>
+
+            {mostrarCalendario && (
+              <View style={estilos.calendarioContainer}>
+                <Calendar
+                  current={fecha}
+                  onDayPress={onDayPress}
+                  markedDates={markedDates}
+                  minDate={'2026-11-10'}
+                  maxDate={'2026-12-31'}
+                  theme={{
+                    backgroundColor: '#FFFFFF',
+                    calendarBackground: '#FFFFFF',
+                    textSectionTitleColor: '#64748B',
+                    selectedDayBackgroundColor: '#0F2540',
+                    selectedDayTextColor: '#FFFFFF',
+                    todayTextColor: '#0F2540',
+                    dayTextColor: '#0F2540',
+                    textDisabledColor: '#CBD5E1',
+                    dotColor: '#0F2540',
+                    selectedDotColor: '#FFFFFF',
+                    arrowColor: '#0F2540',
+                    monthTextColor: '#0F2540',
+                    textDayFontFamily: 'Inter_500Medium',
+                    textMonthFontFamily: 'Inter_700Bold',
+                    textDayHeaderFontFamily: 'Inter_600SemiBold',
+                    textDayFontSize: 16,
+                    textMonthFontSize: 16,
+                    textDayHeaderFontSize: 12,
+                  }}
+                />
+              </View>
+            )}
+
+            <Text style={estilos.tituloSeccion}>3. Franjas Horarias Disponibles</Text>
+            <View style={estilos.leyenda}>
+              <View style={estilos.itemLeyenda}><View style={[estilos.dot, { backgroundColor: '#DCFCE7' }]} /><Text style={estilos.textoLeyenda}>Disponible</Text></View>
+              <View style={estilos.itemLeyenda}><View style={[estilos.dot, { backgroundColor: '#FEE2E2' }]} /><Text style={estilos.textoLeyenda}>Ocupado</Text></View>
+              <View style={estilos.itemLeyenda}><View style={[estilos.dot, { backgroundColor: '#0F2540' }]} /><Text style={estilos.textoLeyenda}>Seleccionado</Text></View>
+            </View>
+
+            {BLOQUES_OFICIALES.map((bloque) => {
+              const ocupado = estaOcupadoPorOtro(bloque);
+              const seleccionado = bloqueSeleccionado === bloque;
+              const deshabilitado = ocupado || (!modoAdmin && !veredictoMora.permitido);
+
+              let bg = '#F8FAFC', borde = '#CBD5E1', textoColor = '#64748B', etiqueta = 'DISPONIBLE', iconoNombre = 'time-outline';
+              if (ocupado) {
+                bg = '#FEE2E2'; borde = '#FCA5A5'; textoColor = '#991B1B'; etiqueta = 'OCUPADO'; iconoNombre = 'lock-closed';
+              } else if (seleccionado) {
+                bg = '#0F2540'; borde = '#0F2540'; textoColor = '#FFFFFF'; etiqueta = 'SELECCIONADO'; iconoNombre = 'checkmark-circle';
+              }
+
+              return (
+                <Pressable
+                  key={bloque}
+                  disabled={deshabilitado}
+                  onPress={() => setBloqueSeleccionado(bloque)}
+                  accessibilityRole="button"
+                  style={[estilos.bloqueCard, { backgroundColor: bg, borderColor: borde }, deshabilitado && !ocupado && { opacity: 0.5 }]}
+                >
+                  <View style={estilos.bloqueInfo}>
+                    <Ionicons name={iconoNombre as any} size={20} color={textoColor} style={{ marginRight: 12 }} />
+                    <View>
+                      <Text style={[estilos.bloqueHora, { color: textoColor }]}>{bloque}</Text>
+                      <Text style={[estilos.bloqueEstado, { color: textoColor }]}>{etiqueta}</Text>
+                    </View>
+                  </View>
+                  {seleccionado && <Ionicons name="checkmark-circle" size={24} color="#10B981" />}
+                </Pressable>
+              );
+            })}
+
+            <Pressable
+              disabled={(!modoAdmin && !veredictoMora.permitido) || !bloqueSeleccionado || guardando}
+              onPress={confirmarReserva}
+              style={[
+                estilos.btnConfirmar,
+                ((!modoAdmin && !veredictoMora.permitido) || !bloqueSeleccionado || guardando) && estilos.btnConfirmarDeshabilitado,
+              ]}
+              accessibilityRole="button"
+            >
+              {guardando ? (
+                <ActivityIndicator size="small" color="#FFF" style={{ marginRight: 10 }} />
+              ) : (
+                <Ionicons name="checkmark-circle" size={22} color="#FFF" style={{ marginRight: 10 }} />
+              )}
+              <Text style={estilos.btnConfirmarTexto}>
+                {guardando
+                  ? 'Guardando...'
+                  : bloqueSeleccionado
+                  ? `Confirmar: ${bloqueSeleccionado}`
+                  : 'Selecciona una franja disponible'}
+              </Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* Mensaje para admin que no puede reservar */}
+        {modoAdmin && reservasGuardadas.length === 0 && (
+          <View style={estilos.adminVacio}>
+            <Ionicons name="calendar-outline" size={40} color="#CBD5E1" style={{ marginBottom: 12 }} />
+            <Text style={estilos.adminVacioTexto}>No hay reservas registradas aún</Text>
+            <Text style={estilos.adminVacioSub}>Las reservas de residentes aparecerán aquí</Text>
+          </View>
+        )}
+
       </ScrollView>
+      <BarraNavegacionModulos />
     </View>
   );
 }
 
 const estilos = StyleSheet.create({
-  contenedorPrincipal: { flex: 1, backgroundColor: COLORES.fondo },
-  contenedor: { flex: 1, backgroundColor: COLORES.fondo },
-  barraModulos: {
+  contenedor: { flex: 1, backgroundColor: '#F8FAFC' },
+  header: {
+    backgroundColor: '#0F2540',
+    paddingTop: 55,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
     flexDirection: 'row',
-    backgroundColor: COLORES.blanco,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    gap: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#CBD5E1',
-  },
-  tabModulo: {
-    flex: 1,
-    paddingVertical: 11,
-    borderRadius: 10,
-    backgroundColor: '#F1F5F9',
     alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 48,
   },
-  tabModuloActivo: { backgroundColor: COLORES.primario },
-  textoModulo: { fontSize: 13, fontWeight: '800', color: COLORES.textoOscuro },
-  textoModuloActivo: { color: COLORES.blanco },
-  headerUnidad: {
+  headerTitle: { color: '#FFF', fontSize: 18, fontWeight: '800', fontFamily: 'Inter_800ExtraBold' },
+  headerSub: { color: '#94A3B8', fontSize: 12, marginTop: 2, fontFamily: 'Inter_500Medium' },
+
+  // Banners
+  bannerExito: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: COLORES.blanco,
+    backgroundColor: '#DCFCE7',
+    marginHorizontal: 20,
+    marginTop: 20,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#86EFAC',
+  },
+  bannerExitoTitulo: { fontSize: 15, fontWeight: '800', color: '#166534', fontFamily: 'Inter_800ExtraBold', marginBottom: 2 },
+  bannerExitoDetalle: { fontSize: 13, color: '#166534', fontFamily: 'Inter_500Medium' },
+  bannerError: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    marginHorizontal: 20,
+    marginTop: 20,
     padding: 14,
     borderRadius: 12,
-    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+  },
+  bannerErrorTexto: { color: '#991B1B', fontSize: 13, fontWeight: '600', flex: 1, fontFamily: 'Inter_600SemiBold' },
+  bannerMora: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    margin: 20,
+    marginTop: 24,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+  },
+  bannerMoraTitulo: { fontSize: 15, fontWeight: '800', color: '#991B1B', fontFamily: 'Inter_800ExtraBold', marginBottom: 4 },
+  bannerMoraDesc: { fontSize: 13, color: '#991B1B', lineHeight: 18, fontFamily: 'Inter_500Medium' },
+  bannerAdmin: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    margin: 20,
+    marginTop: 24,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  bannerAdminTexto: { color: '#0F2540', fontSize: 13, fontWeight: '600', fontFamily: 'Inter_600SemiBold', flex: 1 },
+  bannerAlDia: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DCFCE7',
+    margin: 20,
+    marginTop: 24,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#86EFAC',
+  },
+  bannerAlDiaTexto: { color: '#166534', fontSize: 14, fontWeight: '600', fontFamily: 'Inter_600SemiBold', flex: 1 },
+
+  // Historial de reservas
+  seccionHistorial: { paddingHorizontal: 20, paddingTop: 24 },
+  filaSeccion: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
+  tituloSeccion: { fontSize: 16, fontWeight: '700', color: '#0F2540', fontFamily: 'Inter_700Bold' },
+  badgeContador: {
+    backgroundColor: '#0F2540',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginLeft: 8,
+  },
+  badgeContadorTexto: { color: '#FFF', fontSize: 12, fontWeight: '700', fontFamily: 'Inter_700Bold' },
+
+  cardReserva: {
+    backgroundColor: '#FFF',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     elevation: 1,
   },
-  etiquetaUnidad: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: COLORES.textoGris,
-    letterSpacing: 0.7,
+  cardReservaCancelada: {
+    backgroundColor: '#F8FAFC',
+    borderColor: '#F1F5F9',
+    opacity: 0.75,
   },
-  valorUnidad: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: COLORES.primario,
-    marginTop: 2,
-  },
-  btnRefrescar: {
+  iconoReserva: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#F1F5F9',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  btnRefrescarTexto: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: COLORES.primario,
-  },
-  bannerAlDia: {
-    backgroundColor: COLORES.pagadoFondo,
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: '#86EFAC',
-  },
-  bannerAlDiaTexto: {
-    color: COLORES.pagadoTexto,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: COLORES.primario,
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  filaBotones: { flexDirection: 'row', gap: 10, marginBottom: 12 },
-  cardArea: {
-    flex: 1,
-    backgroundColor: COLORES.blanco,
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#CBD5E1',
-    minHeight: 96,
-    justifyContent: 'center',
-  },
-  cardAreaActiva: {
-    backgroundColor: COLORES.primario,
-    borderColor: COLORES.primario,
-  },
-  iconoArea: { fontSize: 22, marginBottom: 4 },
-  tituloArea: { fontSize: 15, fontWeight: '800', color: COLORES.primario },
-  detalleArea: { fontSize: 11, color: COLORES.textoGris, marginTop: 3, lineHeight: 15 },
-  textoBlanco: { color: COLORES.blanco },
-  textoBlancoSuave: { color: '#CBD5E1' },
-  chip: {
-    flex: 1,
-    backgroundColor: '#E2E8F0',
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-    minHeight: 48,
-    justifyContent: 'center',
-  },
-  chipActivo: { backgroundColor: COLORES.primario },
-  chipTexto: { fontWeight: '700', color: COLORES.textoOscuro, fontSize: 13 },
-  chipTextoActivo: { color: COLORES.blanco },
-  cajaCargando: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-    gap: 10,
-  },
-  textoCargando: { fontSize: 13, color: COLORES.textoGris, fontWeight: '600' },
-  alertaBox: {
-    backgroundColor: '#FEE2E2',
-    padding: 12,
-    borderRadius: 10,
-    marginTop: 10,
-    borderWidth: 1,
-    borderColor: '#FCA5A5',
-  },
-  alertaExitoBox: {
-    backgroundColor: '#DCFCE7',
-    borderColor: '#86EFAC',
-  },
-  alertaTexto: { color: '#991B1B', fontWeight: '700', fontSize: 13 },
-  alertaExitoTexto: { color: '#166534' },
-  btnConfirmar: {
-    backgroundColor: COLORES.secundario,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 16,
-    minHeight: 52,
-    justifyContent: 'center',
-    elevation: 2,
-  },
-  btnConfirmarTexto: { color: '#FFF', fontWeight: '800', fontSize: 15, textAlign: 'center' },
-  seccionMisReservas: { marginTop: 22 },
-  tituloMisReservas: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: COLORES.primario,
-    marginBottom: 8,
-  },
-  miReservaBox: {
-    backgroundColor: '#DCFCE7',
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#86EFAC',
-  },
-  miReservaTexto: { fontWeight: '800', color: '#166534', fontSize: 15 },
-  miReservaMeta: { fontSize: 12, color: '#166534', marginTop: 2, fontWeight: '600' },
-  filaAccionesReserva: { flexDirection: 'row', gap: 8 },
-  btnCompartirMini: {
-    backgroundColor: COLORES.secundario,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 8,
-    minHeight: 48,
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 14,
   },
-  btnCompartirMiniTexto: { color: '#FFF', fontWeight: '800', fontSize: 13 },
-  btnCancelar: {
-    flex: 1,
-    backgroundColor: '#991B1B',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    minHeight: 48,
-    justifyContent: 'center',
-  },
-  btnCancelarTexto: { color: '#FFF', fontWeight: '700', fontSize: 13 },
+  cardReservaArea: { fontSize: 15, fontWeight: '700', color: '#0F2540', fontFamily: 'Inter_700Bold', marginBottom: 2 },
+  cardReservaDetalle: { fontSize: 13, color: '#475569', fontFamily: 'Inter_500Medium', marginBottom: 2 },
+  cardReservaApto: { fontSize: 12, color: '#94A3B8', fontFamily: 'Inter_500Medium' },
+  badgeEstado: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  badgeEstadoConfirmada: { backgroundColor: '#DCFCE7' },
+  badgeEstadoCancelada: { backgroundColor: '#FEE2E2' },
+  badgeEstadoTexto: { fontSize: 12, fontWeight: '700', fontFamily: 'Inter_700Bold' },
+
+  // Formulario
+  contenido: { padding: 24, paddingTop: 8 },
+  filaChips: { flexDirection: 'row', gap: 12, marginBottom: 24 },
+  chip: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F1F5F9', paddingVertical: 14, borderRadius: 12, minHeight: 52, borderWidth: 1, borderColor: '#E2E8F0' },
+  chipActivo: { backgroundColor: '#0F2540', borderColor: '#0F2540' },
+  chipTexto: { fontSize: 14, fontWeight: '700', color: '#64748B', fontFamily: 'Inter_700Bold' },
+  chipTextoActivo: { color: '#FFF' },
+
+  btnCalendario: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, paddingVertical: 14, minHeight: 52, marginBottom: 12 },
+  btnCalendarioTexto: { fontSize: 15, fontWeight: '700', color: '#0F2540', fontFamily: 'Inter_700Bold' },
+  calendarioContainer: { backgroundColor: '#FFF', borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 24, overflow: 'hidden' },
+
+  leyenda: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16, paddingHorizontal: 4 },
+  itemLeyenda: { flexDirection: 'row', alignItems: 'center' },
+  dot: { width: 12, height: 12, borderRadius: 6, marginRight: 6 },
+  textoLeyenda: { fontSize: 12, color: '#64748B', fontFamily: 'Inter_500Medium' },
+
+  bloqueCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: 1.5, borderRadius: 12, padding: 16, marginBottom: 12, minHeight: 64 },
+  bloqueInfo: { flexDirection: 'row', alignItems: 'center' },
+  bloqueHora: { fontSize: 15, fontWeight: '800', fontFamily: 'Inter_800ExtraBold' },
+  bloqueEstado: { fontSize: 12, fontWeight: '600', marginTop: 2, fontFamily: 'Inter_600SemiBold' },
+
+  btnConfirmar: { backgroundColor: '#0F2540', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 18, borderRadius: 14, marginTop: 16, minHeight: 56, elevation: 3 },
+  btnConfirmarDeshabilitado: { backgroundColor: '#CBD5E1', elevation: 0 },
+  btnConfirmarTexto: { color: '#FFF', fontSize: 15, fontWeight: '800', fontFamily: 'Inter_800ExtraBold' },
+
+  // Admin vacío
+  adminVacio: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 48, marginTop: 32 },
+  adminVacioTexto: { fontSize: 16, fontWeight: '700', color: '#334155', fontFamily: 'Inter_700Bold', textAlign: 'center', marginBottom: 6 },
+  adminVacioSub: { fontSize: 13, color: '#94A3B8', fontFamily: 'Inter_500Medium', textAlign: 'center' },
 });

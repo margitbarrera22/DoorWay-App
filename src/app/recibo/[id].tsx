@@ -1,356 +1,467 @@
-// src/app/recibo/[id].tsx — Autor: Wilfran Leonardo Betancourt Ardila (HU-03 #3, HU-04 #4 y Elemento Transversal #4)
-import React from 'react';
-import { View, Text, Image, Pressable, StyleSheet, ScrollView } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+// src/app/recibo/[id].tsx — Lógica: Wilfran | UX/UI: Margit Barrera
+import React, { useCallback, useState } from 'react';
+import { View, Text, Image, Pressable, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useRecibos } from '../../hooks/RecibosContext';
-import { COLORES, coloresPorEstado } from '../../theme/tema';
 
-export default function DetalleReciboScreen() {
+export default function DetalleRecibo() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { recibos, modoAdmin, conciliar } = useRecibos();
-
+  const { recibos, modoAdmin, conciliar, cargar } = useRecibos();
   const recibo = recibos.find((r) => r.id === id);
+
+  const [errorCargaFoto, setErrorCargaFoto] = useState(false);
+  const [cargandoFoto, setCargandoFoto] = useState(false);
+
+  // Recarga datos frescos de SQLite cada vez que la pantalla vuelve al foco
+  useFocusEffect(
+    useCallback(() => {
+      cargar();
+      setErrorCargaFoto(false);
+    }, [])
+  );
+
   if (!recibo) {
     return (
       <View style={estilos.contenedorCentrado}>
-        <Text style={estilos.titulo}>Recibo no encontrado</Text>
+        <Ionicons name="alert-circle-outline" size={48} color="#94A3B8" style={{ marginBottom: 12 }} />
+        <Text style={estilos.textoError}>Recibo no encontrado</Text>
         <Pressable
           onPress={() => router.back()}
           accessibilityRole="button"
-          style={estilos.btnSecundario}
+          style={estilos.btnVolverError}
         >
-          <Text style={estilos.btnSecundarioTexto}>Volver a Cartera</Text>
+          <Text style={estilos.btnVolverErrorTexto}>Volver a Cartera</Text>
         </Pressable>
       </View>
     );
   }
 
-  const badgeColor = coloresPorEstado(recibo.estado);
+  const esMora = recibo.estado === 'En mora';
+  const esValidacion = recibo.estado === 'En validación';
+  const esPagado = recibo.estado === 'Pagado';
+
+  const aprobarPago = async () => {
+    try {
+      await conciliar(recibo.id, 'Pagado');
+    } catch {}
+    router.back();
+  };
+
+  const rechazarPago = async () => {
+    try {
+      await conciliar(recibo.id, 'En mora', 'Soporte bancario rechazado o no verificado');
+    } catch {}
+    router.back();
+  };
 
   return (
-    <ScrollView style={estilos.contenedor} contentContainerStyle={{ padding: 18, paddingBottom: 40 }}>
-      {/* 1. Tarjeta Principal de Factura */}
-      <View style={estilos.cardPrincipal}>
-        <View style={estilos.filaBadge}>
-          <Text style={estilos.periodo}>{recibo.periodo}</Text>
-          <View style={[estilos.badge, { backgroundColor: badgeColor.bg }]}>
-            <Text style={[estilos.badgeTexto, { color: badgeColor.text }]}>{recibo.estado}</Text>
-          </View>
-        </View>
-
-        <Text style={estilos.monto}>${recibo.monto.toLocaleString('es-CO')} COP</Text>
-        <View style={estilos.divisor} />
-
-        <View style={estilos.filaDato}>
-          <Text style={estilos.etiqueta}>🏢 Apartamento:</Text>
-          <Text style={estilos.valorDato}>{recibo.apartamento}</Text>
-        </View>
-
-        <View style={estilos.filaDato}>
-          <Text style={estilos.etiqueta}>👤 Residente:</Text>
-          <Text style={estilos.valorDato}>{recibo.residenteNombre}</Text>
-        </View>
-
-        <View style={estilos.filaDato}>
-          <Text style={estilos.etiqueta}>📅 Vencimiento:</Text>
-          <Text style={estilos.valorDato}>{recibo.fechaVencimiento}</Text>
-        </View>
-
-        <View style={estilos.filaDato}>
-          <Text style={estilos.etiqueta}>🔢 Ref. Bancaria:</Text>
-          <Text style={estilos.valorDato}>{recibo.referenciaBancaria || 'Sin registrar'}</Text>
-        </View>
-
-        {recibo.observacionAdmin && (
-          <View style={estilos.cajaObservacion}>
-            <Text style={estilos.observacionTitulo}>💬 Observación de Administración:</Text>
-            <Text style={estilos.observacionTexto}>{recibo.observacionAdmin}</Text>
-          </View>
-        )}
-      </View>
-
-      {/* 2. Visor Oficial de Fotografía del Comprobante (Elemento Transversal #4) */}
-      <View style={estilos.seccionFoto}>
-        <Text style={estilos.tituloSeccion}>📸 Soporte Fotográfico del Pago</Text>
-        {recibo.comprobanteUrl ? (
-          <View style={estilos.cardFoto}>
-            <Image
-              source={{ uri: recibo.comprobanteUrl }}
-              style={estilos.imagenComprobante}
-              resizeMode="cover"
-              accessibilityLabel={`Fotografía del comprobante del recibo ${recibo.periodo}`}
-            />
-            <View style={estilos.pieFoto}>
-              <Text style={estilos.pieFotoTexto}>
-                ✓ Archivo adjunto verificado para conciliación
-              </Text>
-            </View>
-          </View>
-        ) : (
-          <View style={estilos.cardFotoVacia}>
-            <Text style={estilos.fotoVaciaIcono}>📷</Text>
-            <Text style={estilos.fotoVaciaTexto}>Sin fotografía de soporte adjunta todavía.</Text>
-            <Text style={estilos.fotoVaciaSubtexto}>
-              El residente puede adjuntar la foto del recibo o voucher bancario.
-            </Text>
-          </View>
-        )}
-      </View>
-
-      {/* 3. Acción para Residente: Subir comprobante */}
-      {recibo.estado !== 'Pagado' && !modoAdmin && (
+    <ScrollView style={estilos.contenedor} contentContainerStyle={{ paddingBottom: 40 }}>
+      <View style={estilos.header}>
         <Pressable
-          style={estilos.btnPrimario}
+          onPress={() => router.back()}
           accessibilityRole="button"
-          onPress={() => router.push({ pathname: '/recibo/subir', params: { idRecibo: recibo.id } })}
+          accessibilityLabel="Volver"
+          style={estilos.btnBack}
         >
-          <Text style={estilos.btnPrimarioTexto}>📤 Subir comprobante de pago (HU-01)</Text>
+          <Ionicons name="arrow-back" size={24} color="#FFF" />
         </Pressable>
-      )}
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={estilos.headerTitle}>Detalle del recibo</Text>
+          <Text style={estilos.headerSub}>Administración · Recibo {recibo.id}</Text>
+        </View>
+        <View style={{ width: 40 }} />
+      </View>
 
-      {/* 4. Panel de Conciliación Exclusivo para Administrador (HU-04) */}
-      {modoAdmin && (
-        <View style={estilos.panelAdmin}>
-          <Text style={estilos.subtituloAdmin}>🛡️ Panel de Conciliación (Administrador · HU-04)</Text>
-          <Text style={estilos.descAdmin}>
-            Verifica la referencia bancaria y la foto del soporte antes de aprobar o devolver a mora.
+      <View style={estilos.content}>
+        <View style={estilos.card}>
+          <View style={estilos.filaTop}>
+            <Text style={estilos.periodo}>{recibo.periodo}</Text>
+            {esMora && (
+              <View style={estilos.badgeMora}>
+                <Text style={estilos.badgeMoraTexto}>En mora</Text>
+              </View>
+            )}
+            {esValidacion && (
+              <View style={estilos.badgeValidacion}>
+                <Text style={estilos.badgeValidacionTexto}>En validación</Text>
+              </View>
+            )}
+            {esPagado && (
+              <View style={estilos.badgePagado}>
+                <Text style={estilos.badgePagadoTexto}>Pagado</Text>
+              </View>
+            )}
+          </View>
+
+          <Text style={estilos.labelTotal}>Total del recibo</Text>
+          <Text style={estilos.montoGrande}>
+            ${recibo.monto.toLocaleString('es-CO')} <Text style={estilos.moneda}>COP</Text>
           </Text>
 
-          <Pressable
-            style={[estilos.btnAccionAdmin, { backgroundColor: '#166534' }]}
-            accessibilityRole="button"
-            onPress={async () => {
-              await conciliar(recibo.id, 'Pagado');
-              router.back();
-            }}
-          >
-            <Text style={estilos.btnAccionAdminTexto}>✓ Aprobar pago (Marcar como Pagado)</Text>
-          </Pressable>
+          <View style={estilos.divider} />
 
-          <Pressable
-            style={[estilos.btnAccionAdmin, { backgroundColor: '#991B1B', marginTop: 10 }]}
-            accessibilityRole="button"
-            onPress={async () => {
-              await conciliar(recibo.id, 'En mora', 'Soporte bancario ilegible o no verificado');
-              router.back();
-            }}
-          >
-            <Text style={estilos.btnAccionAdminTexto}>✕ Rechazar soporte (Devolver a En mora)</Text>
-          </Pressable>
+          <View style={estilos.filaDato}>
+            <Text style={estilos.labelDato}>Apartamento</Text>
+            <Text style={estilos.valorDato}>{recibo.apartamento}</Text>
+          </View>
+          <View style={estilos.filaDato}>
+            <Text style={estilos.labelDato}>Residente</Text>
+            <Text style={estilos.valorDato}>{recibo.residenteNombre}</Text>
+          </View>
+          <View style={estilos.filaDato}>
+            <Text style={estilos.labelDato}>Vencimiento</Text>
+            <Text style={estilos.valorDato}>{recibo.fechaVencimiento}</Text>
+          </View>
+          <View style={estilos.filaDato}>
+            <Text style={estilos.labelDato}>Ref. Bancaria</Text>
+            <Text style={estilos.valorDato}>{recibo.referenciaBancaria || 'Sin registrar'}</Text>
+          </View>
+
+          {esMora && recibo.observacionAdmin && (
+            <View style={estilos.cajaObservacion}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                <Ionicons name="chatbubble-ellipses" size={16} color="#854D0E" style={{ marginRight: 6 }} />
+                <Text style={estilos.observacionTitulo}>Observación de Administración:</Text>
+              </View>
+              <Text style={estilos.observacionTexto}>{recibo.observacionAdmin}</Text>
+            </View>
+          )}
         </View>
-      )}
+
+        {/* Sección: Comprobante fotográfico adjunto */}
+        <View style={estilos.seccionFoto}>
+          <Text style={estilos.tituloSeccion}>Soporte fotográfico del pago</Text>
+          {recibo.comprobanteUrl && !errorCargaFoto ? (
+            <View style={estilos.cardFoto}>
+              <View style={estilos.contenedorImagen}>
+                {cargandoFoto && (
+                  <View style={estilos.loaderFoto}>
+                    <ActivityIndicator size="small" color="#0F2540" />
+                  </View>
+                )}
+                <Image
+                  source={{ uri: recibo.comprobanteUrl }}
+                  style={estilos.imagenComprobante}
+                  resizeMode="contain"
+                  onLoadStart={() => setCargandoFoto(true)}
+                  onLoadEnd={() => setCargandoFoto(false)}
+                  onError={() => {
+                    setCargandoFoto(false);
+                    setErrorCargaFoto(true);
+                  }}
+                  accessibilityLabel={`Fotografía del comprobante del recibo ${recibo.periodo}`}
+                />
+              </View>
+              <View style={estilos.pieFoto}>
+                <Ionicons name="checkmark-circle" size={16} color="#166534" style={{ marginRight: 6 }} />
+                <Text style={estilos.pieFotoTexto}>Soporte adjunto</Text>
+              </View>
+            </View>
+          ) : (
+            <View style={estilos.cardFotoVacia}>
+              <Ionicons
+                name="image-outline"
+                size={38}
+                color="#94A3B8"
+                style={{ marginBottom: 8, opacity: 0.8 }}
+              />
+              <Text style={estilos.fotoVaciaTexto}>Todavía no se ha subido ningún soporte</Text>
+              <Text style={estilos.fotoVaciaSubtexto}>El comprobante se mostrará aquí una vez sea adjuntado</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Vista Residente: Cuando el pago ya fue enviado y está 'En validación' */}
+        {!modoAdmin && esValidacion && (
+          <View style={estilos.bannerRevision}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+              <Ionicons name="time" size={20} color="#854D0E" style={{ marginRight: 8 }} />
+              <Text style={estilos.bannerRevisionTitulo}>Pago en validación</Text>
+            </View>
+            <Text style={estilos.bannerRevisionTexto}>
+              Tu soporte fue enviado con éxito. La administración verificará y conciliará tu pago en breve.
+            </Text>
+            <Pressable
+              style={estilos.btnCambiarSoporte}
+              onPress={() => router.push({ pathname: '/recibo/subir', params: { id: recibo.id, idRecibo: recibo.id } })}
+              accessibilityRole="button"
+              accessibilityLabel="Cambiar soporte"
+            >
+              <Ionicons name="camera-outline" size={16} color="#854D0E" style={{ marginRight: 6 }} />
+              <Text style={estilos.btnCambiarSoporteTexto}>Cambiar soporte o corregir</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* Vista Residente: Cuando está 'En mora' (requiere subir soporte) */}
+        {!modoAdmin && esMora && (
+          <>
+            <Pressable
+              style={estilos.btnSubir}
+              onPress={() => router.push({ pathname: '/recibo/subir', params: { id: recibo.id, idRecibo: recibo.id } })}
+              accessibilityRole="button"
+              accessibilityLabel="Subir comprobante de pago"
+            >
+              <Ionicons name="cloud-upload-outline" size={20} color="#FFF" style={{ marginRight: 10 }} />
+              <Text style={estilos.btnSubirTexto}>Subir comprobante</Text>
+            </Pressable>
+            <Text style={estilos.textoAyuda}>Adjunta el soporte fotográfico para validar tu pago.</Text>
+          </>
+        )}
+
+        {/* Modo Administrador: Botones Aprobar/Rechazar */}
+        {modoAdmin && (
+          <View style={estilos.cardAdmin}>
+            <View style={estilos.filaAdmin}>
+              <Ionicons name="shield-checkmark" size={22} color="#0F2540" style={{ marginRight: 10 }} />
+              <Text style={estilos.tituloAdmin}>Panel de Conciliación (Admin)</Text>
+            </View>
+            <Text style={estilos.descAdmin}>
+              Verifica el comprobante y la referencia antes de aprobar o rechazar el pago de este recibo.
+            </Text>
+            <View style={estilos.filaBotonesAdmin}>
+              <Pressable
+                onPress={aprobarPago}
+                accessibilityRole="button"
+                accessibilityLabel="Aprobar pago del recibo"
+                style={estilos.btnAprobar}
+              >
+                <Ionicons name="checkmark-circle" size={20} color="#FFF" style={{ marginRight: 8 }} />
+                <Text style={estilos.textoBtnAprobar}>Aprobar pago</Text>
+              </Pressable>
+              <Pressable
+                onPress={rechazarPago}
+                accessibilityRole="button"
+                accessibilityLabel="Rechazar pago del recibo"
+                style={estilos.btnRechazar}
+              >
+                <Ionicons name="close-circle" size={20} color="#991B1B" style={{ marginRight: 8 }} />
+                <Text style={estilos.textoBtnRechazar}>Rechazar</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
+      </View>
     </ScrollView>
   );
 }
 
 const estilos = StyleSheet.create({
-  contenedor: { flex: 1, backgroundColor: COLORES.fondo },
+  contenedor: { flex: 1, backgroundColor: '#F8FAFC' },
   contenedorCentrado: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORES.fondo,
-    padding: 20,
+    backgroundColor: '#F8FAFC',
+    padding: 24,
   },
-  titulo: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: COLORES.primario,
-    marginBottom: 8,
+  textoError: { color: '#0F2540', fontSize: 17, fontWeight: '700', marginBottom: 16, fontFamily: 'Inter_700Bold' },
+  btnVolverError: {
+    backgroundColor: '#0F2540',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 10,
   },
-  cardPrincipal: {
-    backgroundColor: COLORES.blanco,
-    borderRadius: 14,
-    padding: 18,
-    marginBottom: 16,
-    elevation: 3,
+  btnVolverErrorTexto: { color: '#FFF', fontWeight: '700', fontSize: 14, fontFamily: 'Inter_700Bold' },
+  header: {
+    backgroundColor: '#0F2540',
+    paddingTop: 55,
+    paddingBottom: 22,
+    paddingHorizontal: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  btnBack: { marginRight: 12, padding: 8, minHeight: 44, justifyContent: 'center' },
+  headerTitle: { color: '#FFF', fontSize: 18, fontWeight: '800', fontFamily: 'Inter_800ExtraBold' },
+  headerSub: { color: '#94A3B8', fontSize: 12, marginTop: 3, fontFamily: 'Inter_500Medium' },
+  content: { padding: 24 },
+  card: {
+    backgroundColor: '#FFF',
+    borderRadius: 18,
+    padding: 26,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#F1F5F9',
+    elevation: 2,
+    marginBottom: 16,
   },
-  filaBadge: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  periodo: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: COLORES.primario,
-  },
-  badge: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 999,
-  },
-  badgeTexto: {
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  monto: {
-    fontSize: 26,
-    fontWeight: '900',
-    color: COLORES.secundario,
-    marginTop: 4,
-  },
-  divisor: {
-    height: 1,
-    backgroundColor: '#E2E8F0',
-    marginVertical: 14,
-  },
-  filaDato: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  etiqueta: {
-    fontSize: 14,
-    color: COLORES.textoGris,
-    fontWeight: '600',
-  },
-  valorDato: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: COLORES.textoOscuro,
-  },
+  filaTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, flexWrap: 'wrap', gap: 8 },
+  periodo: { fontSize: 17, fontWeight: '700', color: '#334155', fontFamily: 'Inter_700Bold' },
+  badgeMora: { backgroundColor: '#FEE2E2', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20 },
+  badgeMoraTexto: { color: '#991B1B', fontSize: 12, fontWeight: '800', fontFamily: 'Inter_800ExtraBold' },
+  badgeValidacion: { backgroundColor: '#FEF9C3', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20 },
+  badgeValidacionTexto: { color: '#854D0E', fontSize: 12, fontWeight: '800', fontFamily: 'Inter_800ExtraBold' },
+  badgePagado: { backgroundColor: '#DCFCE7', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20 },
+  badgePagadoTexto: { color: '#166534', fontSize: 12, fontWeight: '800', fontFamily: 'Inter_800ExtraBold' },
+  labelTotal: { fontSize: 13, color: '#64748B', marginBottom: 6, fontWeight: '600', fontFamily: 'Inter_600SemiBold' },
+  montoGrande: { fontSize: 38, fontWeight: '900', color: '#0F2540', marginBottom: 22, fontFamily: 'Inter_900Black' },
+  moneda: { fontSize: 16, color: '#64748B', fontFamily: 'Inter_600SemiBold' },
+  divider: { height: 1, backgroundColor: '#F1F5F9', marginBottom: 22 },
+  filaDato: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 },
+  labelDato: { color: '#64748B', fontSize: 14, fontWeight: '500', fontFamily: 'Inter_500Medium' },
+  valorDato: { color: '#0F2540', fontWeight: '700', fontSize: 14, fontFamily: 'Inter_700Bold' },
   cajaObservacion: {
     backgroundColor: '#FEF9C3',
-    padding: 12,
-    borderRadius: 10,
-    marginTop: 10,
+    padding: 14,
+    borderRadius: 12,
+    marginTop: 8,
     borderWidth: 1,
-    borderColor: '#FACC15',
+    borderColor: '#FDE047',
   },
   observacionTitulo: {
     fontSize: 13,
     fontWeight: '800',
     color: '#854D0E',
-    marginBottom: 2,
+    fontFamily: 'Inter_800ExtraBold',
   },
   observacionTexto: {
     fontSize: 13,
     color: '#713F12',
     lineHeight: 18,
+    fontFamily: 'Inter_500Medium',
   },
   seccionFoto: {
-    marginBottom: 16,
+    marginBottom: 8,
   },
   tituloSeccion: {
     fontSize: 16,
     fontWeight: '800',
-    color: COLORES.primario,
-    marginBottom: 10,
+    color: '#0F2540',
+    marginBottom: 12,
+    fontFamily: 'Inter_800ExtraBold',
   },
   cardFoto: {
-    backgroundColor: COLORES.blanco,
+    backgroundColor: '#FFF',
     borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#CBD5E1',
-    elevation: 3,
+    borderColor: '#E2E8F0',
+    elevation: 2,
+    marginBottom: 16,
+  },
+  contenedorImagen: {
+    width: '100%',
+    height: 320,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  loaderFoto: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(248, 250, 252, 0.7)',
+    zIndex: 2,
   },
   imagenComprobante: {
     width: '100%',
-    height: 290,
-    backgroundColor: '#E2E8F0',
+    height: '100%',
+    backgroundColor: '#F8FAFC',
   },
   pieFoto: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 10,
     backgroundColor: '#F8FAFC',
-    alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: '#F1F5F9',
   },
   pieFotoTexto: {
     fontSize: 12,
     fontWeight: '700',
-    color: COLORES.pagadoTexto,
+    color: '#166534',
+    fontFamily: 'Inter_700Bold',
+  },
+  bannerRevision: {
+    backgroundColor: '#FEF9C3',
+    borderWidth: 1,
+    borderColor: '#FDE047',
+    borderRadius: 14,
+    padding: 18,
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  bannerRevisionTitulo: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#854D0E',
+    fontFamily: 'Inter_800ExtraBold',
+  },
+  bannerRevisionTexto: {
+    fontSize: 13,
+    color: '#713F12',
+    lineHeight: 19,
+    fontFamily: 'Inter_500Medium',
+    marginBottom: 12,
+  },
+  btnCambiarSoporte: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: '#EAB308',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  btnCambiarSoporteTexto: {
+    color: '#854D0E',
+    fontSize: 13,
+    fontWeight: '700',
+    fontFamily: 'Inter_700Bold',
   },
   cardFotoVacia: {
-    backgroundColor: COLORES.blanco,
+    backgroundColor: '#FFF',
     borderRadius: 14,
     padding: 24,
     alignItems: 'center',
     borderWidth: 1.5,
     borderColor: '#CBD5E1',
     borderStyle: 'dashed',
-  },
-  fotoVaciaIcono: {
-    fontSize: 34,
-    marginBottom: 8,
+    marginBottom: 16,
   },
   fotoVaciaTexto: {
     fontSize: 14,
     fontWeight: '700',
-    color: COLORES.textoOscuro,
+    color: '#334155',
     textAlign: 'center',
+    fontFamily: 'Inter_700Bold',
   },
   fotoVaciaSubtexto: {
     fontSize: 12,
-    color: COLORES.textoGris,
+    color: '#94A3B8',
     textAlign: 'center',
     marginTop: 4,
+    fontFamily: 'Inter_500Medium',
   },
-  btnPrimario: {
-    backgroundColor: COLORES.primario,
-    paddingVertical: 15,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    alignItems: 'center',
+  btnSubir: {
+    backgroundColor: '#0F2540',
+    flexDirection: 'row',
     justifyContent: 'center',
-    minHeight: 50,
-    elevation: 2,
-    marginBottom: 16,
-  },
-  btnPrimarioTexto: {
-    color: COLORES.blanco,
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  btnSecundario: {
-    backgroundColor: COLORES.secundario,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 10,
-    marginTop: 14,
-  },
-  btnSecundarioTexto: {
-    color: COLORES.blanco,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  panelAdmin: {
-    backgroundColor: '#EEF2F6',
+    alignItems: 'center',
+    padding: 18,
     borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
+    marginTop: 10,
+    minHeight: 56,
+    elevation: 3,
   },
-  subtituloAdmin: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: COLORES.primario,
-    marginBottom: 4,
-  },
-  descAdmin: {
-    fontSize: 12,
-    color: COLORES.textoGris,
-    marginBottom: 14,
-    lineHeight: 18,
-  },
-  btnAccionAdmin: {
-    paddingVertical: 13,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 48,
-  },
-  btnAccionAdminTexto: {
-    color: COLORES.blanco,
-    fontSize: 14,
-    fontWeight: '800',
-  },
+  btnSubirTexto: { color: '#FFF', fontSize: 16, fontWeight: '800', fontFamily: 'Inter_800ExtraBold' },
+  textoAyuda: { textAlign: 'center', color: '#94A3B8', fontSize: 13, marginTop: 10, fontFamily: 'Inter_500Medium' },
+  cardAdmin: { backgroundColor: '#FFF', borderRadius: 16, padding: 22, marginTop: 16, borderWidth: 1, borderColor: '#0F2540' },
+  filaAdmin: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  tituloAdmin: { fontSize: 16, fontWeight: '800', color: '#0F2540', fontFamily: 'Inter_800ExtraBold' },
+  descAdmin: { color: '#64748B', fontSize: 14, marginBottom: 18, lineHeight: 21, fontFamily: 'Inter_500Medium' },
+  filaBotonesAdmin: { flexDirection: 'row', gap: 12 },
+  btnAprobar: { flex: 1, backgroundColor: '#166534', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 16, borderRadius: 12, minHeight: 48 },
+  textoBtnAprobar: { color: '#FFF', fontWeight: '800', fontSize: 15, fontFamily: 'Inter_800ExtraBold' },
+  btnRechazar: { flex: 1, backgroundColor: '#FFF', borderWidth: 1.5, borderColor: '#991B1B', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 16, borderRadius: 12, minHeight: 48 },
+  textoBtnRechazar: { color: '#991B1B', fontWeight: '800', fontSize: 15, fontFamily: 'Inter_800ExtraBold' },
 });
