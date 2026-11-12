@@ -149,6 +149,25 @@ export default function PantallaReservas() {
     return Boolean(obtenerReservaOcupada(b));
   };
 
+  // Filtrado estricto: el Administrador puede auditar todas las reservas,
+  // pero cada Residente ve ÚNICA Y EXCLUSIVAMENTE sus propias reservas
+  const misReservasVisibles = esAdmin
+    ? reservasGuardadas
+    : reservasGuardadas.filter((r) => {
+        const aptoUsuario = (usuarioActual?.apartamento || '').toLowerCase().trim();
+        const rApto = (r.apartamento || '').toLowerCase().trim();
+        const digitosUsuario = aptoUsuario.replace(/\D/g, '');
+        const digitosReserva = rApto.replace(/\D/g, '');
+
+        if (aptoUsuario && (rApto === aptoUsuario || rApto.includes(aptoUsuario) || aptoUsuario.includes(rApto))) {
+          return true;
+        }
+        if (digitosUsuario && digitosReserva && digitosUsuario === digitosReserva) {
+          return true;
+        }
+        return false;
+      });
+
   const onDayPress = (day: DateData) => {
     setFecha(day.dateString);
     setBloqueSeleccionado(null);
@@ -337,8 +356,8 @@ export default function PantallaReservas() {
           </View>
         )}
 
-        {/* ── HISTORIAL DE RESERVAS ── */}
-        {reservasGuardadas.length > 0 && (
+        {/* ── HISTORIAL DE RESERVAS (Solo las del residente en sesión o todas para admin) ── */}
+        {misReservasVisibles.length > 0 && (
           <View style={estilos.seccionHistorial}>
             <View style={estilos.filaSeccion}>
               <Ionicons name="list" size={18} color="#0F2540" style={{ marginRight: 8 }} />
@@ -346,11 +365,11 @@ export default function PantallaReservas() {
                 {esAdmin ? 'Reservas registradas' : 'Mis reservas'}
               </Text>
               <View style={estilos.badgeContador}>
-                <Text style={estilos.badgeContadorTexto}>{reservasGuardadas.length}</Text>
+                <Text style={estilos.badgeContadorTexto}>{misReservasVisibles.length}</Text>
               </View>
             </View>
 
-            {reservasGuardadas.map((r) => (
+            {misReservasVisibles.map((r) => (
               <View
                 key={r.id}
                 style={[
@@ -530,8 +549,8 @@ export default function PantallaReservas() {
           </View>
         )}
 
-        {/* Mensaje para admin que no puede reservar */}
-        {modoAdmin && reservasGuardadas.length === 0 && (
+        {/* Mensaje para admin cuando no hay reservas */}
+        {esAdmin && reservasGuardadas.length === 0 && (
           <View style={estilos.adminVacio}>
             <Ionicons name="calendar-outline" size={40} color="#CBD5E1" style={{ marginBottom: 12 }} />
             <Text style={estilos.adminVacioTexto}>No hay reservas registradas aún</Text>

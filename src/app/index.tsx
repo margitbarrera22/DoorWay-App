@@ -39,6 +39,16 @@ export default function PantallaCartera() {
   const [mostrarAnteriores, setMostrarAnteriores] = useState(false);
   const [busquedaResidente, setBusquedaResidente] = useState('');
 
+  // Control para Administrador: minimizar meses anteriores debajo del mes actual de cada cliente
+  const [clientesExpandidos, setClientesExpandidos] = useState<Record<string, boolean>>({});
+
+  const alternarExpandirCliente = (apto: string) => {
+    setClientesExpandidos((prev) => ({
+      ...prev,
+      [apto]: !prev[apto],
+    }));
+  };
+
   const [fontsLoaded] = useFonts({
     Inter_500Medium,
     Inter_600SemiBold,
@@ -90,6 +100,36 @@ export default function PantallaCartera() {
     }
     return true;
   });
+
+  // Agrupar recibos del admin por cliente para mostrar el mes actual y minimizar los del pasado
+  interface GrupoClienteAdmin {
+    apartamento: string;
+    nombre: string;
+    reciboActual: Recibo;
+    recibosAnteriores: Recibo[];
+  }
+
+  const gruposPorCliente: GrupoClienteAdmin[] = [];
+  const agrupadoTemp = new Map<string, Recibo[]>();
+
+  for (const r of recibosAdminFiltrados) {
+    const clave = r.apartamento;
+    if (!agrupadoTemp.has(clave)) {
+      agrupadoTemp.set(clave, []);
+    }
+    agrupadoTemp.get(clave)!.push(r);
+  }
+
+  for (const [apto, lista] of agrupadoTemp.entries()) {
+    if (lista.length > 0) {
+      gruposPorCliente.push({
+        apartamento: apto,
+        nombre: lista[0].residenteNombre,
+        reciboActual: lista[0], // el más reciente / mes actual
+        recibosAnteriores: lista.slice(1), // meses pasados a minimizar
+      });
+    }
+  }
 
   // ── MODO RESIDENTE: RECIBOS PROPIOS Y RECIBO ACTUAL HERO ──
   const misRecibos = filtrarRecibosPorUsuario(recibos, usuarioActual);
@@ -312,90 +352,184 @@ export default function PantallaCartera() {
               )}
             </View>
 
-            {recibosAdminFiltrados.length === 0 ? (
+            {gruposPorCliente.length === 0 ? (
               <View style={estilos.vacioAdmin}>
                 <Ionicons name="search-outline" size={36} color="#94A3B8" style={{ marginBottom: 8 }} />
                 <Text style={estilos.vacioAdminTexto}>No se encontraron recibos con los filtros actuales</Text>
               </View>
             ) : (
-              recibosAdminFiltrados.map((item) => (
-                <View key={item.id} style={estilos.cardReciboAdmin}>
-                  {/* Encabezado del Cliente */}
-                  <View style={estilos.cardReciboAdminHeader}>
-                    <View style={estilos.avatarClienteMini}>
-                      <Ionicons name="person" size={16} color="#0F2540" />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={estilos.nombreClienteAdmin}>{item.residenteNombre}</Text>
-                      <Text style={estilos.aptoClienteAdmin}>{item.apartamento}</Text>
-                    </View>
-                    <View
-                      style={[
-                        estilos.badgeEstado,
-                        item.estado === 'Pagado' && estilos.badgePagado,
-                        item.estado === 'En validación' && estilos.badgeValidacion,
-                        item.estado === 'En mora' && estilos.badgeMora,
-                      ]}
-                    >
-                      <Text
+              gruposPorCliente.map((grupo) => {
+                const item = grupo.reciboActual;
+                const anteriores = grupo.recibosAnteriores;
+                const estaExpandido = Boolean(clientesExpandidos[grupo.apartamento]);
+
+                return (
+                  <View key={item.id} style={estilos.cardReciboAdmin}>
+                    {/* Encabezado del Cliente */}
+                    <View style={estilos.cardReciboAdminHeader}>
+                      <View style={estilos.avatarClienteMini}>
+                        <Ionicons name="person" size={16} color="#0F2540" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={estilos.nombreClienteAdmin}>{item.residenteNombre}</Text>
+                        <Text style={estilos.aptoClienteAdmin}>{item.apartamento}</Text>
+                      </View>
+                      <View
                         style={[
-                          estilos.badgeEstadoTexto,
-                          item.estado === 'Pagado' && { color: '#166534' },
-                          item.estado === 'En validación' && { color: '#854D0E' },
-                          item.estado === 'En mora' && { color: '#991B1B' },
+                          estilos.badgeEstado,
+                          item.estado === 'Pagado' && estilos.badgePagado,
+                          item.estado === 'En validación' && estilos.badgeValidacion,
+                          item.estado === 'En mora' && estilos.badgeMora,
                         ]}
                       >
-                        {item.estado}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Cuerpo del Recibo */}
-                  <View style={estilos.cardReciboAdminBody}>
-                    <View>
-                      <Text style={estilos.periodoAdminTexto}>{item.periodo}</Text>
-                      <Text style={estilos.montoAdminTexto}>
-                        ${(item.monto ?? 185000).toLocaleString('es-CO')}{' '}
-                        <Text style={estilos.monedaAdminTexto}>COP</Text>
-                      </Text>
-                    </View>
-
-                    <Pressable
-                      onPress={() => router.push(`/recibo/${item.id}`)}
-                      style={estilos.btnGestionarAdmin}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Gestionar recibo de ${item.residenteNombre}`}
-                    >
-                      <Text style={estilos.btnGestionarAdminTexto}>Gestionar</Text>
-                      <Ionicons name="chevron-forward" size={16} color="#FFF" />
-                    </Pressable>
-                  </View>
-
-                  {/* Pie con detalles de soporte y vencimiento */}
-                  <View style={estilos.cardReciboAdminFooter}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Ionicons name="calendar-outline" size={13} color="#64748B" style={{ marginRight: 4 }} />
-                      <Text style={estilos.fechaVenceAdmin}>Vence: {item.fechaVencimiento}</Text>
-                    </View>
-
-                    {item.referenciaBancaria ? (
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Ionicons name="receipt-outline" size={13} color="#64748B" style={{ marginRight: 4 }} />
-                        <Text style={estilos.refAdmin} numberOfLines={1}>
-                          Ref: {item.referenciaBancaria}
+                        <Text
+                          style={[
+                            estilos.badgeEstadoTexto,
+                            item.estado === 'Pagado' && { color: '#166534' },
+                            item.estado === 'En validación' && { color: '#854D0E' },
+                            item.estado === 'En mora' && { color: '#991B1B' },
+                          ]}
+                        >
+                          {item.estado}
                         </Text>
                       </View>
-                    ) : null}
+                    </View>
 
-                    {item.comprobanteUrl ? (
-                      <View style={estilos.chipFotoSoporte}>
-                        <Ionicons name="image" size={12} color="#166534" style={{ marginRight: 3 }} />
-                        <Text style={estilos.chipFotoSoporteTexto}>Foto adjunta</Text>
+                    {/* Cuerpo del Recibo Actual */}
+                    <View style={estilos.cardReciboAdminBody}>
+                      <View>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Text style={estilos.periodoAdminTexto}>{item.periodo}</Text>
+                          <View style={estilos.chipMesActual}>
+                            <Text style={estilos.chipMesActualTexto}>Mes actual</Text>
+                          </View>
+                        </View>
+                        <Text style={estilos.montoAdminTexto}>
+                          ${(item.monto ?? 185000).toLocaleString('es-CO')}{' '}
+                          <Text style={estilos.monedaAdminTexto}>COP</Text>
+                        </Text>
                       </View>
-                    ) : null}
+
+                      <Pressable
+                        onPress={() => router.push(`/recibo/${item.id}`)}
+                        style={estilos.btnGestionarAdmin}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Gestionar recibo actual de ${item.residenteNombre}`}
+                      >
+                        <Text style={estilos.btnGestionarAdminTexto}>Gestionar</Text>
+                        <Ionicons name="chevron-forward" size={16} color="#FFF" />
+                      </Pressable>
+                    </View>
+
+                    {/* Pie con detalles de soporte y vencimiento */}
+                    <View style={estilos.cardReciboAdminFooter}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Ionicons name="calendar-outline" size={13} color="#64748B" style={{ marginRight: 4 }} />
+                        <Text style={estilos.fechaVenceAdmin}>Vence: {item.fechaVencimiento}</Text>
+                      </View>
+
+                      {item.referenciaBancaria ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Ionicons name="receipt-outline" size={13} color="#64748B" style={{ marginRight: 4 }} />
+                          <Text style={estilos.refAdmin} numberOfLines={1}>
+                            Ref: {item.referenciaBancaria}
+                          </Text>
+                        </View>
+                      ) : null}
+
+                      {item.comprobanteUrl ? (
+                        <View style={estilos.chipFotoSoporte}>
+                          <Ionicons name="image" size={12} color="#166534" style={{ marginRight: 3 }} />
+                          <Text style={estilos.chipFotoSoporteTexto}>Foto adjunta</Text>
+                        </View>
+                      ) : null}
+                    </View>
+
+                    {/* Acordeón para Meses Anteriores Minimizados (ej. Doña Martha) */}
+                    {anteriores.length > 0 && (
+                      <View style={{ marginTop: 10 }}>
+                        <Pressable
+                          onPress={() => alternarExpandirCliente(grupo.apartamento)}
+                          style={estilos.btnToggleMesesAnteriores}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Ver recibos de meses anteriores de ${grupo.nombre}`}
+                        >
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Ionicons
+                              name={estaExpandido ? 'chevron-up-circle' : 'time-outline'}
+                              size={15}
+                              color="#0F2540"
+                              style={{ marginRight: 6 }}
+                            />
+                            <Text style={estilos.textoToggleMesesAnteriores}>
+                              {estaExpandido
+                                ? `Ocultar meses anteriores de ${grupo.nombre.split(' ')[0]}`
+                                : `Ver ${anteriores.length} recibos anteriores (${anteriores.map((r) => r.periodo.split(' ')[0]).join(', ')})`}
+                            </Text>
+                          </View>
+                          <Ionicons
+                            name={estaExpandido ? 'chevron-up' : 'chevron-down'}
+                            size={16}
+                            color="#0F2540"
+                          />
+                        </Pressable>
+
+                        {/* Lista desplegada de meses anteriores minimizados */}
+                        {estaExpandido && (
+                          <View style={estilos.contenedorMesesAnteriores}>
+                            {anteriores.map((ant) => (
+                              <View key={ant.id} style={estilos.cardReciboAnteriorAdmin}>
+                                <View style={{ flex: 1, marginRight: 10 }}>
+                                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                                    <Text style={estilos.periodoAnteriorTexto}>{ant.periodo}</Text>
+                                    <View
+                                      style={[
+                                        estilos.badgeEstadoMini,
+                                        ant.estado === 'Pagado' && estilos.badgePagado,
+                                        ant.estado === 'En validación' && estilos.badgeValidacion,
+                                        ant.estado === 'En mora' && estilos.badgeMora,
+                                      ]}
+                                    >
+                                      <Text
+                                        style={[
+                                          estilos.badgeEstadoMiniTexto,
+                                          ant.estado === 'Pagado' && { color: '#166534' },
+                                          ant.estado === 'En validación' && { color: '#854D0E' },
+                                          ant.estado === 'En mora' && { color: '#991B1B' },
+                                        ]}
+                                      >
+                                        {ant.estado}
+                                      </Text>
+                                    </View>
+                                  </View>
+                                  <Text style={estilos.montoAnteriorTexto}>
+                                    ${(ant.monto ?? 185000).toLocaleString('es-CO')} COP
+                                  </Text>
+                                  {ant.referenciaBancaria ? (
+                                    <Text style={estilos.refAnteriorTexto} numberOfLines={1}>
+                                      Ref: {ant.referenciaBancaria}
+                                    </Text>
+                                  ) : null}
+                                </View>
+
+                                <Pressable
+                                  onPress={() => router.push(`/recibo/${ant.id}`)}
+                                  style={estilos.btnVerDetalleMini}
+                                  accessibilityRole="button"
+                                  accessibilityLabel={`Gestionar recibo anterior de ${ant.periodo}`}
+                                >
+                                  <Text style={estilos.btnVerDetalleMiniTexto}>Gestionar</Text>
+                                  <Ionicons name="chevron-forward" size={13} color="#0F2540" />
+                                </Pressable>
+                              </View>
+                            ))}
+                          </View>
+                        )}
+                      </View>
+                    )}
                   </View>
-                </View>
-              ))
+                );
+              })
             )}
           </View>
         </ScrollView>
@@ -917,6 +1051,98 @@ const estilos = StyleSheet.create({
     fontWeight: '700',
     color: '#166534',
     fontFamily: 'Inter_700Bold',
+  },
+
+  chipMesActual: {
+    backgroundColor: '#E0F2FE',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 5,
+    marginLeft: 6,
+  },
+  chipMesActualTexto: {
+    color: '#0369A1',
+    fontSize: 10,
+    fontWeight: '800',
+    fontFamily: 'Inter_800ExtraBold',
+  },
+
+  btnToggleMesesAnteriores: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 10,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+  },
+  textoToggleMesesAnteriores: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0F2540',
+    fontFamily: 'Inter_700Bold',
+  },
+  contenedorMesesAnteriores: {
+    marginTop: 8,
+    gap: 8,
+    paddingLeft: 6,
+    borderLeftWidth: 2,
+    borderLeftColor: '#CBD5E1',
+  },
+  cardReciboAnteriorAdmin: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  periodoAnteriorTexto: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#334155',
+    fontFamily: 'Inter_700Bold',
+    marginRight: 6,
+  },
+  montoAnteriorTexto: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F2540',
+    fontFamily: 'Inter_800ExtraBold',
+    marginTop: 2,
+  },
+  refAnteriorTexto: {
+    fontSize: 11,
+    color: '#64748B',
+    fontFamily: 'Inter_500Medium',
+    marginTop: 1,
+  },
+  badgeEstadoMini: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  badgeEstadoMiniTexto: {
+    fontSize: 10,
+    fontWeight: '800',
+    fontFamily: 'Inter_800ExtraBold',
+  },
+  btnVerDetalleMini: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E2E8F0',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  btnVerDetalleMiniTexto: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0F2540',
+    fontFamily: 'Inter_700Bold',
+    marginRight: 2,
   },
   vacioAdmin: {
     backgroundColor: '#FFFFFF',
