@@ -1,10 +1,12 @@
 // src/app/reservas.tsx — Calendario real + Reserva funcional | Wilfran + Margit
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator, Image } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Calendar, DateData } from 'react-native-calendars';
 import { useFonts, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold } from '@expo-google-fonts/inter';
 import { Ionicons } from '@expo/vector-icons';
 import { useRecibos } from '../hooks/RecibosContext';
+import { useAuth } from '../hooks/AuthContext';
 import { AreaComun, BloqueHorario, Reserva } from '../domain/modelos';
 import { evaluarDerechoAReservar } from '../domain/reglasNegocio';
 import { BarraNavegacionModulos } from '../components/BarraNavegacionModulos';
@@ -59,7 +61,9 @@ const AREAS: AreaComun[] = ['Salón Social', 'Kiosco BBQ'];
 const BLOQUES_OFICIALES: BloqueHorario[] = ['09:00 - 13:00', '14:00 - 18:00', '19:00 - 23:00'];
 
 export default function PantallaReservas() {
+  const router = useRouter();
   const { recibos, modoAdmin } = useRecibos();
+  const { usuarioActual } = useAuth();
   const veredictoMora = evaluarDerechoAReservar(recibos);
 
   const [area, setArea] = useState<AreaComun>('Salón Social');
@@ -139,16 +143,31 @@ export default function PantallaReservas() {
 
   return (
     <View style={estilos.contenedor}>
-      {/* Header */}
+      {/* Header corporativo */}
       <View style={estilos.header}>
-        <View style={{ flex: 1, alignItems: 'center' }}>
+        <View style={{ flex: 1, paddingRight: 10 }}>
           <Text style={estilos.headerTitle}>
             {modoAdmin ? 'Gestión de Áreas Comunes' : 'Reservar Área Común'}
           </Text>
           <Text style={estilos.headerSub}>
-            {modoAdmin ? 'Panel de Administración · Calendario de copropiedad' : 'Agenda de áreas comunes · DoorWay'}
+            {modoAdmin ? 'Panel de Administración · Calendario' : 'Agenda de áreas comunes · DoorWay'}
           </Text>
         </View>
+
+        {/* Botón de Perfil en el Header */}
+        <Pressable
+          onPress={() => router.push('/perfil')}
+          accessibilityRole="button"
+          accessibilityLabel="Ir al perfil del usuario"
+          style={estilos.btnPerfilHeader}
+        >
+          {usuarioActual?.avatarUrl ? (
+            <Image source={{ uri: usuarioActual.avatarUrl }} style={estilos.avatarHeaderImg} />
+          ) : (
+            <Ionicons name="business" size={26} color="#FFF" />
+          )}
+          <View style={estilos.puntoActivo} />
+        </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
@@ -415,12 +434,36 @@ const estilos = StyleSheet.create({
     backgroundColor: '#0F2540',
     paddingTop: 55,
     paddingBottom: 20,
-    paddingHorizontal: 20,
+    paddingHorizontal: 22,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  headerTitle: { color: '#FFF', fontSize: 18, fontWeight: '800', fontFamily: 'Inter_800ExtraBold' },
+  headerTitle: { color: '#FFF', fontSize: 20, fontWeight: '800', fontFamily: 'Inter_800ExtraBold' },
   headerSub: { color: '#94A3B8', fontSize: 12, marginTop: 2, fontFamily: 'Inter_500Medium' },
+  btnPerfilHeader: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
+    position: 'relative',
+  },
+  avatarHeaderImg: { width: 44, height: 44, borderRadius: 22 },
+  puntoActivo: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 13,
+    height: 13,
+    borderRadius: 6.5,
+    backgroundColor: '#10B981',
+    borderWidth: 2,
+    borderColor: '#0F2540',
+  },
 
   // Banners
   bannerExito: {

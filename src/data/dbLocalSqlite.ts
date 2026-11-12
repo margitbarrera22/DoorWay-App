@@ -51,7 +51,24 @@ export function inicializarBaseLocal(): void {
         correo TEXT NOT NULL,
         rol TEXT NOT NULL,
         apartamento TEXT NOT NULL,
-        acepto_ley1581 INTEGER DEFAULT 0
+        acepto_ley1581 INTEGER DEFAULT 0,
+        avatarUrl TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS usuarios_registrados (
+        id TEXT PRIMARY KEY NOT NULL,
+        nombre TEXT NOT NULL,
+        correo TEXT NOT NULL,
+        pin_acceso TEXT NOT NULL,
+        rol TEXT NOT NULL,
+        apartamento TEXT NOT NULL,
+        acepto_ley1581 INTEGER DEFAULT 0,
+        avatarUrl TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS preferencias_app (
+        clave TEXT PRIMARY KEY NOT NULL,
+        valor TEXT NOT NULL
       );
 
       CREATE TABLE IF NOT EXISTS anuncios_cache (
@@ -111,7 +128,24 @@ export class DbLocalSqliteRepository implements IRecibosRepository {
           correo TEXT NOT NULL,
           rol TEXT NOT NULL,
           apartamento TEXT NOT NULL,
-          acepto_ley1581 INTEGER DEFAULT 0
+          acepto_ley1581 INTEGER DEFAULT 0,
+          avatarUrl TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS usuarios_registrados (
+          id TEXT PRIMARY KEY NOT NULL,
+          nombre TEXT NOT NULL,
+          correo TEXT NOT NULL,
+          pin_acceso TEXT NOT NULL,
+          rol TEXT NOT NULL,
+          apartamento TEXT NOT NULL,
+          acepto_ley1581 INTEGER DEFAULT 0,
+          avatarUrl TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS preferencias_app (
+          clave TEXT PRIMARY KEY NOT NULL,
+          valor TEXT NOT NULL
         );
 
         CREATE TABLE IF NOT EXISTS anuncios_cache (
@@ -228,14 +262,74 @@ export class DbLocalSqliteRepository implements IRecibosRepository {
     }
   }
 
+  async sincronizarDesdeSupabase(recibos: Recibo[]): Promise<void> {
+    if (!this.db) await this.inicializarBaseDatos();
+    if (!this.db) return;
+    for (const r of recibos) {
+      const local = await this.db.getFirstAsync<Recibo>(
+        'SELECT * FROM recibos_local WHERE id = ?;',
+        [r.id]
+      );
+
+      if (!local) {
+        await this.db.runAsync(
+          `INSERT INTO recibos_local (id, apartamento, residenteNombre, periodo, monto, fechaVencimiento, estado, referenciaBancaria, comprobanteUrl, observacionAdmin)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+          [
+            r.id,
+            r.apartamento,
+            r.residenteNombre,
+            r.periodo,
+            r.monto,
+            r.fechaVencimiento,
+            r.estado,
+            r.referenciaBancaria || null,
+            r.comprobanteUrl || null,
+            r.observacionAdmin || null,
+          ]
+        );
+      } else {
+        // Si Supabase trae una foto remota válida, la usamos; si viene null pero tenemos foto local, preservamos la local
+        const fotoFinal = r.comprobanteUrl || local.comprobanteUrl || null;
+        // La referencia bancaria de Supabase se sincroniza si viene presente
+        const refFinal = (r.referenciaBancaria !== undefined && r.referenciaBancaria !== null)
+          ? r.referenciaBancaria
+          : local.referenciaBancaria;
+
+        await this.db.runAsync(
+          `UPDATE recibos_local 
+           SET estado = ?, 
+               referenciaBancaria = ?, 
+               comprobanteUrl = ?, 
+               observacionAdmin = ?,
+               monto = ?,
+               fechaVencimiento = ?
+           WHERE id = ?;`,
+          [
+            r.estado,
+            refFinal || null,
+            fotoFinal || null,
+            r.observacionAdmin || null,
+            r.monto,
+            r.fechaVencimiento,
+            r.id,
+          ]
+        );
+      }
+    }
+  }
+
   // --- PERSISTENCIA DE SESIÓN ACTIVA Y LEY 1581 EN SQLITE ---
   async guardarSesionEnSqlite(usuario: UsuarioSesion): Promise<void> {
     if (!this.db) await this.inicializarBaseDatos();
     if (!this.db) return;
+    try {
+      await this.db.runAsync('ALTER TABLE sesion_activa ADD COLUMN avatarUrl TEXT;');
+    } catch {}
     await this.db.runAsync('DELETE FROM sesion_activa;');
     await this.db.runAsync(
-      `INSERT INTO sesion_activa (id, nombre, correo, rol, apartamento, acepto_ley1581)
-       VALUES (?, ?, ?, ?, ?, ?);`,
+      `INSERT INTO sesion_activa (id, nombre, correo, rol, apartamento, acepto_ley1581, avatarUrl)
+       VALUES (?, ?, ?, ?, ?, ?, ?);`,
       [
         usuario.id,
         usuario.nombre,
@@ -243,6 +337,7 @@ export class DbLocalSqliteRepository implements IRecibosRepository {
         usuario.rol,
         usuario.apartamento,
         usuario.aceptoLey1581 ? 1 : 0,
+        usuario.avatarUrl || null,
       ]
     );
   }
@@ -259,6 +354,7 @@ export class DbLocalSqliteRepository implements IRecibosRepository {
       rol: fila.rol as RolUsuario,
       apartamento: fila.apartamento,
       aceptoLey1581: Boolean(fila.acepto_ley1581),
+      avatarUrl: fila.avatarUrl || null,
     };
   }
 
@@ -266,6 +362,90 @@ export class DbLocalSqliteRepository implements IRecibosRepository {
     if (!this.db) await this.inicializarBaseDatos();
     if (!this.db) return;
     await this.db.runAsync('DELETE FROM sesion_activa;');
+  }
+
+  async guardarUsuarioRegistrado(usuario: {
+    id: string;
+    nombre: string;
+    correo: string;
+    pin_acceso: string;
+    rol: string;
+    apartamento: string;
+    acepto_ley1581?: boolean;
+    avatarUrl?: string | null;
+  }): Promise<void> {
+    if (!this.db) await this.inicializarBaseDatos();
+    if (!this.db) return;
+    await this.db.runAsync(
+      `INSERT OR REPLACE INTO usuarios_registrados (id, nombre, correo, pin_acceso, rol, apartamento, acepto_ley1581, avatarUrl)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+      [
+        usuario.id,
+        usuario.nombre,
+        usuario.correo.toLowerCase(),
+        usuario.pin_acceso,
+        usuario.rol,
+        usuario.apartamento,
+        usuario.acepto_ley1581 ? 1 : 0,
+        usuario.avatarUrl || null,
+      ]
+    );
+  }
+
+  async buscarUsuarioRegistrado(entrada: string, pin: string): Promise<any | null> {
+    if (!this.db) await this.inicializarBaseDatos();
+    if (!this.db) return null;
+    const e = entrada.trim().toLowerCase();
+    const fila = await this.db.getFirstAsync<any>(
+      `SELECT * FROM usuarios_registrados 
+       WHERE (LOWER(correo) = ? OR LOWER(apartamento) LIKE ? OR id = ?) AND pin_acceso = ? LIMIT 1;`,
+      [e, `%${e}%`, e, pin.trim()]
+    );
+    return fila || null;
+  }
+
+  async actualizarPinUsuario(idUsuario: string, nuevoPin: string): Promise<void> {
+    if (!this.db) await this.inicializarBaseDatos();
+    if (!this.db) return;
+    await this.db.runAsync(
+      `UPDATE usuarios_registrados SET pin_acceso = ? WHERE id = ?;`,
+      [nuevoPin.trim(), idUsuario]
+    );
+  }
+
+  async actualizarAvatarUsuario(idUsuario: string, avatarUrl: string): Promise<void> {
+    if (!this.db) await this.inicializarBaseDatos();
+    if (!this.db) return;
+    try {
+      await this.db.runAsync('ALTER TABLE sesion_activa ADD COLUMN avatarUrl TEXT;');
+    } catch {}
+    await this.db.runAsync(
+      `UPDATE sesion_activa SET avatarUrl = ? WHERE id = ?;`,
+      [avatarUrl, idUsuario]
+    );
+    await this.db.runAsync(
+      `UPDATE usuarios_registrados SET avatarUrl = ? WHERE id = ?;`,
+      [avatarUrl, idUsuario]
+    );
+  }
+
+  async guardarPreferencia(clave: string, valor: string): Promise<void> {
+    if (!this.db) await this.inicializarBaseDatos();
+    if (!this.db) return;
+    await this.db.runAsync(
+      `INSERT OR REPLACE INTO preferencias_app (clave, valor) VALUES (?, ?);`,
+      [clave, valor]
+    );
+  }
+
+  async obtenerPreferencia(clave: string): Promise<string | null> {
+    if (!this.db) await this.inicializarBaseDatos();
+    if (!this.db) return null;
+    const fila = await this.db.getFirstAsync<any>(
+      `SELECT valor FROM preferencias_app WHERE clave = ?;`,
+      [clave]
+    );
+    return fila ? fila.valor : null;
   }
 }
 
@@ -281,6 +461,14 @@ export async function leerSesionDeSqlite(): Promise<UsuarioSesion | null> {
 
 export async function borrarSesionDeSqlite(): Promise<void> {
   await instanciaSqliteSesion.borrarSesionDeSqlite();
+}
+
+export async function guardarPreferenciaSqlite(clave: string, valor: string): Promise<void> {
+  await instanciaSqliteSesion.guardarPreferencia(clave, valor);
+}
+
+export async function obtenerPreferenciaSqlite(clave: string): Promise<string | null> {
+  return await instanciaSqliteSesion.obtenerPreferencia(clave);
 }
 
 // --- FUNCIONES DE CACHÉ LOCAL PARA RECIBOS Y COMUNIDAD OFFLINE (HU-08, HU-11 Y TEC-05) ---

@@ -132,7 +132,20 @@ export default function DetalleRecibo() {
 
         {/* Sección: Comprobante fotográfico adjunto */}
         <View style={estilos.seccionFoto}>
-          <Text style={estilos.tituloSeccion}>Soporte fotográfico del pago</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <Text style={estilos.tituloSeccion}>Soporte fotográfico del pago</Text>
+            {recibo.comprobanteUrl ? (
+              <Pressable
+                onPress={() => router.push({ pathname: '/recibo/subir', params: { id: recibo.id, idRecibo: recibo.id } })}
+                style={estilos.btnCambiarFotoHeader}
+                accessibilityRole="button"
+                accessibilityLabel="Cambiar foto de soporte"
+              >
+                <Ionicons name="camera-reverse-outline" size={16} color="#0F2540" style={{ marginRight: 4 }} />
+                <Text style={estilos.btnCambiarFotoHeaderText}>Cambiar</Text>
+              </Pressable>
+            ) : null}
+          </View>
           {recibo.comprobanteUrl && !errorCargaFoto ? (
             <View style={estilos.cardFoto}>
               <View style={estilos.contenedorImagen}>
@@ -156,8 +169,20 @@ export default function DetalleRecibo() {
               </View>
               <View style={estilos.pieFoto}>
                 <Ionicons name="checkmark-circle" size={16} color="#166534" style={{ marginRight: 6 }} />
-                <Text style={estilos.pieFotoTexto}>Soporte adjunto</Text>
+                <Text style={estilos.pieFotoTexto}>Soporte registrado en el sistema</Text>
               </View>
+            </View>
+          ) : recibo.comprobanteUrl && errorCargaFoto ? (
+            <View style={estilos.cardFotoVacia}>
+              <Ionicons name="cloud-offline-outline" size={38} color="#D97706" style={{ marginBottom: 8 }} />
+              <Text style={[estilos.fotoVaciaTexto, { color: '#B45309' }]}>Soporte registrado pero no se pudo cargar la imagen</Text>
+              <Text style={estilos.fotoVaciaSubtexto}>Puedes reintentar o subir una foto nueva tocando Cambiar arriba</Text>
+              <Pressable
+                onPress={() => setErrorCargaFoto(false)}
+                style={{ marginTop: 10, paddingVertical: 6, paddingHorizontal: 14, backgroundColor: '#FEF3C7', borderRadius: 8 }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#92400E' }}>Reintentar cargar foto</Text>
+              </Pressable>
             </View>
           ) : (
             <View style={estilos.cardFotoVacia}>
@@ -211,7 +236,29 @@ export default function DetalleRecibo() {
           </>
         )}
 
-        {/* Modo Administrador: Botones Aprobar/Rechazar */}
+        {/* Vista Residente: Cuando está 'Pagado' */}
+        {!modoAdmin && esPagado && (
+          <View style={estilos.bannerPagado}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+              <Ionicons name="checkmark-done-circle" size={20} color="#166534" style={{ marginRight: 8 }} />
+              <Text style={estilos.bannerPagadoTitulo}>Recibo al día y pagado</Text>
+            </View>
+            <Text style={estilos.bannerPagadoTexto}>
+              Este pago se encuentra registrado. Si necesitas modificar el número de referencia bancaria o actualizar la foto, puedes hacerlo aquí:
+            </Text>
+            <Pressable
+              style={estilos.btnEditarSoportePagado}
+              onPress={() => router.push({ pathname: '/recibo/subir', params: { id: recibo.id, idRecibo: recibo.id } })}
+              accessibilityRole="button"
+              accessibilityLabel="Actualizar comprobante o referencia"
+            >
+              <Ionicons name="create-outline" size={16} color="#166534" style={{ marginRight: 6 }} />
+              <Text style={estilos.btnEditarSoportePagadoTexto}>Actualizar número o foto</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* Modo Administrador: Botones Aprobar/Rechazar y Edición */}
         {modoAdmin && (
           <View style={estilos.cardAdmin}>
             <View style={estilos.filaAdmin}>
@@ -241,6 +288,16 @@ export default function DetalleRecibo() {
                 <Text style={estilos.textoBtnRechazar}>Rechazar</Text>
               </Pressable>
             </View>
+
+            <Pressable
+              style={estilos.btnEditarAdmin}
+              onPress={() => router.push({ pathname: '/recibo/subir', params: { id: recibo.id, idRecibo: recibo.id } })}
+              accessibilityRole="button"
+              accessibilityLabel="Editar número de referencia o foto del soporte"
+            >
+              <Ionicons name="create-outline" size={16} color="#0F2540" style={{ marginRight: 6 }} />
+              <Text style={estilos.btnEditarAdminTexto}>Editar número de referencia o foto</Text>
+            </Pressable>
           </View>
         )}
       </View>
@@ -414,6 +471,76 @@ const estilos = StyleSheet.create({
   },
   btnCambiarSoporteTexto: {
     color: '#854D0E',
+    fontSize: 13,
+    fontWeight: '700',
+    fontFamily: 'Inter_700Bold',
+  },
+  btnCambiarFotoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  btnCambiarFotoHeaderText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0F2540',
+    fontFamily: 'Inter_700Bold',
+  },
+  bannerPagado: {
+    backgroundColor: '#DCFCE7',
+    borderWidth: 1,
+    borderColor: '#86EFAC',
+    borderRadius: 14,
+    padding: 18,
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  bannerPagadoTitulo: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#166534',
+    fontFamily: 'Inter_800ExtraBold',
+  },
+  bannerPagadoTexto: {
+    fontSize: 13,
+    color: '#14532D',
+    lineHeight: 19,
+    fontFamily: 'Inter_500Medium',
+    marginBottom: 12,
+  },
+  btnEditarSoportePagado: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: '#166534',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  btnEditarSoportePagadoTexto: {
+    color: '#166534',
+    fontSize: 13,
+    fontWeight: '700',
+    fontFamily: 'Inter_700Bold',
+  },
+  btnEditarAdmin: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    paddingVertical: 12,
+    borderRadius: 10,
+    marginTop: 14,
+  },
+  btnEditarAdminTexto: {
+    color: '#0F2540',
     fontSize: 13,
     fontWeight: '700',
     fontFamily: 'Inter_700Bold',

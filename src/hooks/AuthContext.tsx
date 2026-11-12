@@ -10,6 +10,14 @@ export interface AuthContextType {
   cargandoSesion: boolean;
   errorAuth: string | null;
   iniciarSesion: (correo: string, pin: string) => Promise<boolean>;
+  registrarResidente: (datos: {
+    nombre: string;
+    correo: string;
+    pin: string;
+    apartamento: string;
+  }) => Promise<boolean>;
+  actualizarPin: (pinActual: string, nuevoPin: string) => Promise<boolean>;
+  actualizarAvatar: (uriFoto: string) => Promise<boolean>;
   aceptarLey1581: () => Promise<void>;
   cerrarSesion: () => Promise<void>;
   limpiarErrorAuth: () => void;
@@ -62,6 +70,48 @@ export function AuthProvider({ children, repositorio = repositorioPorDefecto }: 
     }
   }
 
+  async function registrarResidente(datos: {
+    nombre: string;
+    correo: string;
+    pin: string;
+    apartamento: string;
+  }): Promise<boolean> {
+    setErrorAuth(null);
+    try {
+      const sesion = await repositorio.registrarResidente(datos);
+      setUsuarioActual(sesion);
+      return true;
+    } catch (e: any) {
+      setErrorAuth(e?.message || 'Error al registrar residente.');
+      return false;
+    }
+  }
+
+  async function actualizarPin(pinActual: string, nuevoPin: string): Promise<boolean> {
+    if (!usuarioActual) return false;
+    setErrorAuth(null);
+    try {
+      await repositorio.actualizarPin(usuarioActual.id, pinActual, nuevoPin);
+      return true;
+    } catch (e: any) {
+      setErrorAuth(e?.message || 'No se pudo actualizar el PIN.');
+      return false;
+    }
+  }
+
+  async function actualizarAvatar(uriFoto: string): Promise<boolean> {
+    if (!usuarioActual) return false;
+    setErrorAuth(null);
+    try {
+      const actualizada = await repositorio.actualizarAvatar(usuarioActual.id, uriFoto);
+      setUsuarioActual(actualizada);
+      return true;
+    } catch (e: any) {
+      setErrorAuth(e?.message || 'No se pudo actualizar la foto de perfil.');
+      return false;
+    }
+  }
+
   async function aceptarLey1581(): Promise<void> {
     if (!usuarioActual) return;
     try {
@@ -86,6 +136,9 @@ export function AuthProvider({ children, repositorio = repositorioPorDefecto }: 
         cargandoSesion,
         errorAuth,
         iniciarSesion,
+        registrarResidente,
+        actualizarPin,
+        actualizarAvatar,
         aceptarLey1581,
         cerrarSesion,
         limpiarErrorAuth: () => setErrorAuth(null),

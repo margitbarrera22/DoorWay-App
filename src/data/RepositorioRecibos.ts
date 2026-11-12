@@ -16,11 +16,10 @@ const dbLocal = new DbLocalSqliteRepository();
 export class RepositorioRecibosHibrido implements IRecibosRepository {
 
   async obtenerTodos(): Promise<Recibo[]> {
-    // SQLite es SIEMPRE la fuente de verdad (preserva comprobantes subidos localmente).
-    // Supabase se intenta en segundo plano solo para enriquecer datos remotos futuros.
-    const local = await dbLocal.obtenerTodos();
+    // 1. Asegura que SQLite tenga datos base
+    await dbLocal.obtenerTodos();
 
-    // Intento silencioso de sincronización con Supabase (no bloquea ni lanza)
+    // 2. Sincroniza desde Supabase para traer actualizaciones remotas de referencia, foto y estado
     try {
       const { data, error } = await supabase
         .from('recibos')
@@ -37,18 +36,17 @@ export class RepositorioRecibosHibrido implements IRecibosRepository {
           fechaVencimiento: f.fecha_vencimiento,
           estado: f.estado as EstadoRecibo,
           referenciaBancaria: f.referencia_bancaria,
-          // Nunca sobreescribe con null: si SQLite tiene un comprobante, lo conserva
           comprobanteUrl: f.comprobante_url,
           observacionAdmin: f.observacion_admin,
         }));
-        // INSERT OR IGNORE → no pisa comprobanteUrl local
-        await dbLocal.insertarSemilla(mapeados);
+        // Actualiza SQLite con los datos frescos de Supabase
+        await dbLocal.sincronizarDesdeSupabase(mapeados);
       }
     } catch {
-      // Sin internet o Supabase no configurado → continúa solo con SQLite
+      // Sin internet o Supabase no disponible → continúa solo con SQLite local
     }
 
-    // Lee de SQLite siempre (tiene el comprobanteUrl real del residente)
+    // Lee de SQLite siempre con los datos más frescos
     return await dbLocal.obtenerTodos();
   }
 
@@ -58,16 +56,45 @@ export class RepositorioRecibosHibrido implements IRecibosRepository {
   }
 
   private async subirImagenAlBucketSoportes(idRecibo: string, uriLocal: string): Promise<string | null> {
+    if (!uriLocal) return null;
+    // Si ya es una URL remota de Supabase o web, conservarla directamente
+    if (uriLocal.startsWith('http://') || uriLocal.startsWith('https://')) {
+      return uriLocal;
+    }
+
     try {
-      const respuestaArchivo = await fetch(uriLocal);
-      const blob = await respuestaArchivo.blob();
       const rutaArchivo = `comprobantes/${idRecibo}-${Date.now()}.jpg`;
+      let cuerpoSubida: any = null;
+
+      // En React Native / Expo, leemos el archivo con expo-file-system en base64 para construir el ArrayBuffer real
+      try {
+        const FileSystem = require('expo-file-system/legacy');
+        const base64 = await FileSystem.readAsStringAsync(uriLocal, {
+          encoding: 'base64',
+        });
+        if (base64) {
+          const binario = atob(base64);
+          const bytes = new Uint8Array(binario.length);
+          for (let i = 0; i < binario.length; i++) {
+            bytes[i] = binario.charCodeAt(i);
+          }
+          cuerpoSubida = bytes.buffer;
+        }
+      } catch {
+        // Fallback para entorno Web / Blob
+        const res = await fetch(uriLocal);
+        cuerpoSubida = await res.blob();
+      }
+
+      if (!cuerpoSubida) return null;
 
       const { data: uploadData, error: errorUpload } = await supabase.storage
         .from('soportes')
-        .upload(rutaArchivo, blob, { contentType: 'image/jpeg', upsert: true });
+        .upload(rutaArchivo, cuerpoSubida, {
+          contentType: 'image/jpeg',
+          upsert: true,
+        });
 
-      // Si falla la subida (ej: bucket soportes no existe o error 404), NO inventar URL falsa
       if (errorUpload || !uploadData) {
         return null;
       }
@@ -75,34 +102,43 @@ export class RepositorioRecibosHibrido implements IRecibosRepository {
       const { data: urlData } = supabase.storage.from('soportes').getPublicUrl(rutaArchivo);
       return urlData?.publicUrl || null;
     } catch {
-      // Sin Supabase Storage o en modo avión
       return null;
     }
   }
 
   async subirComprobante(idRecibo: string, referencia: string, uriFotoLocal: string): Promise<Recibo> {
-    // 1. Guarda SIEMPRE en SQLite local primero (Garantiza funcionamiento offline / modo avión inmediato)
-    await dbLocal.subirComprobante(idRecibo, referencia.trim(), uriFotoLocal);
+    const refLimpia = referencia.trim();
 
-    // 2. Si hay conexión y credenciales de Supabase configuradas, sincroniza a la nube
-    if (envUrl && envUrl.startsWith('http') && !envUrl.includes('doorway-demo') && envKey) {
-      try {
-        const urlNube = await this.subirImagenAlBucketSoportes(idRecibo, uriFotoLocal);
-        await supabase
-          .from('recibos')
-          .update({
-            estado: 'En validación',
-            referencia_bancaria: referencia.trim(),
-            comprobante_url: urlNube || null,
-            observacion_admin: null,
-          })
-          .eq('id', idRecibo);
-      } catch {
-        // En modo avión o fallo de red, SQLite ya tiene el soporte guardado localmente
-      }
+    // 1. Intentar subir imagen al storage de Supabase si hay red
+    let urlRemota: string | null = null;
+    try {
+      urlRemota = await this.subirImagenAlBucketSoportes(idRecibo, uriFotoLocal);
+    } catch {
+      // Sin internet
     }
 
-    // 3. Devuelve el recibo actualizado desde SQLite (prioridad de visualización inmediata)
+    // 2. URL que se guardará en SQLite: si subió a la nube usamos la URL remota, si no, la local persistente
+    const urlAGuardar = urlRemota || uriFotoLocal;
+
+    // 3. Guarda SIEMPRE en SQLite local primero (Garantiza funcionamiento offline)
+    await dbLocal.subirComprobante(idRecibo, refLimpia, urlAGuardar);
+
+    // 4. Sincroniza a Supabase en la tabla 'recibos'
+    try {
+      await supabase
+        .from('recibos')
+        .update({
+          estado: 'En validación',
+          referencia_bancaria: refLimpia,
+          comprobante_url: urlAGuardar,
+          observacion_admin: null,
+        })
+        .eq('id', idRecibo);
+    } catch {
+      // En modo avión o fallo de red, SQLite ya tiene el soporte guardado localmente
+    }
+
+    // 5. Devuelve el recibo actualizado desde SQLite (prioridad de visualización inmediata)
     const todos = await dbLocal.obtenerTodos();
     const actualizado = todos.find((r) => r.id === idRecibo);
     if (!actualizado) throw new Error(`No se encontró el recibo con ID ${idRecibo}`);
@@ -113,7 +149,7 @@ export class RepositorioRecibosHibrido implements IRecibosRepository {
     // 1. SIEMPRE guarda en SQLite primero
     await dbLocal.conciliarReciboAdmin(idRecibo, nuevoEstado, observacion);
 
-    // 2. Intenta sincronizar con Supabase (opcional)
+    // 2. Sincroniza con Supabase
     try {
       await supabase
         .from('recibos')

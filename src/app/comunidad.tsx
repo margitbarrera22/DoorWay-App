@@ -1,10 +1,24 @@
 // src/app/comunidad.tsx — HU-08 y HU-11 | Lógica: Wilfran | UX/UI: Margit Barrera
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable, Linking, StyleSheet, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  Pressable,
+  Linking,
+  StyleSheet,
+  ActivityIndicator,
+  Switch,
+  Alert,
+  Image,
+} from 'react-native';
+import { useRouter } from 'expo-router';
 import { useFonts, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold } from '@expo-google-fonts/inter';
 import { Ionicons } from '@expo/vector-icons';
 import { Anuncio, ContactoEmergencia } from '../domain/modelos';
 import { RepositorioComunidadHibrido } from '../data/RepositorioComunidadHibrido';
+import { guardarPreferenciaSqlite, obtenerPreferenciaSqlite } from '../data/dbLocalSqlite';
+import { useAuth } from '../hooks/AuthContext';
 import { EstadoPantalla } from '../components/EstadoPantalla';
 import { BarraNavegacionModulos } from '../components/BarraNavegacionModulos';
 
@@ -21,11 +35,15 @@ const COLORES_CATEGORIA: Record<string, { bg: string; texto: string; icono: stri
 type TabActiva = 'avisos' | 'directorio';
 
 export default function PantallaComunidad() {
+  const router = useRouter();
+  const { usuarioActual } = useAuth();
+
   const [anuncios, setAnuncios] = useState<Anuncio[]>([]);
   const [contactos, setContactos] = useState<ContactoEmergencia[]>([]);
   const [cargando, setCargando] = useState(true);
   const [modoOffline, setModoOffline] = useState(false);
   const [tabActiva, setTabActiva] = useState<TabActiva>('avisos');
+  const [notificacionesActivas, setNotificacionesActivas] = useState(true);
 
   const [fontsLoaded] = useFonts({
     Inter_500Medium,
@@ -41,6 +59,12 @@ export default function PantallaComunidad() {
       setAnuncios(res.anuncios);
       setContactos(res.contactos);
       setModoOffline(res.desdeCacheSqlite);
+
+      // Cargar preferencia guardada de notificaciones
+      const pref = await obtenerPreferenciaSqlite('notificaciones_activadas');
+      if (pref !== null) {
+        setNotificacionesActivas(pref === 'true');
+      }
     } catch (error) {
       console.error('Error cargando comunidad:', error);
     } finally {
@@ -52,21 +76,49 @@ export default function PantallaComunidad() {
     cargarDatos();
   }, []);
 
+  const alternarNotificaciones = async (valor: boolean) => {
+    setNotificacionesActivas(valor);
+    await guardarPreferenciaSqlite('notificaciones_activadas', valor ? 'true' : 'false');
+    if (valor) {
+      Alert.alert(
+        '¡Notificaciones Activadas! 🔔',
+        'Recibirás alertas en tiempo real sobre cortes de agua, mantenimientos, convocatorias a asamblea y avisos de seguridad.'
+      );
+    } else {
+      Alert.alert(
+        'Notificaciones en Pausa',
+        'Has desactivado las notificaciones instantáneas de avisos de la comunidad.'
+      );
+    }
+  };
+
   if (!fontsLoaded || cargando) {
     return <ActivityIndicator size="large" color="#0F2540" style={{ flex: 1, justifyContent: 'center' }} />;
   }
 
   return (
     <View style={estilos.contenedor}>
-      {/* Header */}
+      {/* Header corporativo */}
       <View style={estilos.header}>
         <View style={estilos.headerTextos}>
-          <Text style={estilos.headerTitle}>Comunidad</Text>
-          <Text style={estilos.headerSub}>Conjunto La Nueva Esperanza</Text>
+          <Text style={estilos.headerTitle}>Avisos y Comunidad</Text>
+          <Text style={estilos.headerSub}>Conjunto La Nueva Esperanza · Barrancabermeja</Text>
         </View>
-        <View style={estilos.headerIcono}>
-          <Ionicons name="people" size={26} color="#FFF" />
-        </View>
+
+        {/* Botón de Perfil en el Header */}
+        <Pressable
+          onPress={() => router.push('/perfil')}
+          accessibilityRole="button"
+          accessibilityLabel="Ir al perfil del usuario"
+          style={estilos.btnPerfilHeader}
+        >
+          {usuarioActual?.avatarUrl ? (
+            <Image source={{ uri: usuarioActual.avatarUrl }} style={estilos.avatarHeaderImg} />
+          ) : (
+            <Ionicons name="business" size={26} color="#FFF" />
+          )}
+          <View style={estilos.puntoActivo} />
+        </Pressable>
       </View>
 
       {/* Banner offline */}
@@ -74,7 +126,7 @@ export default function PantallaComunidad() {
         <View style={estilos.bannerOffline}>
           <Ionicons name="airplane" size={16} color="#854D0E" style={{ marginRight: 8 }} />
           <Text style={estilos.bannerOfflineTexto}>
-            Sin conexión — mostrando caché local
+            Sin conexión — mostrando avisos y emergencias en caché local
           </Text>
         </View>
       )}
@@ -121,6 +173,30 @@ export default function PantallaComunidad() {
 
       {/* Contenido según tab */}
       <ScrollView contentContainerStyle={estilos.contenido}>
+        {/* ── SECCIÓN DE PERMISOS DE NOTIFICACIONES ── */}
+        <View style={estilos.cardNotificaciones}>
+          <View style={estilos.iconoNotificacion}>
+            <Ionicons
+              name={notificacionesActivas ? 'notifications' : 'notifications-off-outline'}
+              size={22}
+              color="#0F2540"
+            />
+          </View>
+          <View style={estilos.textosNotificacion}>
+            <Text style={estilos.tituloNotificacion}>Permitir Notificaciones</Text>
+            <Text style={estilos.subtituloNotificacion}>
+              {notificacionesActivas
+                ? 'Alertas activadas para cortes, asambleas y seguridad'
+                : 'Activa para recibir alertas comunitarias al instante'}
+            </Text>
+          </View>
+          <Switch
+            value={notificacionesActivas}
+            onValueChange={alternarNotificaciones}
+            trackColor={{ false: '#CBD5E1', true: '#0F2540' }}
+            thumbColor={notificacionesActivas ? '#FFFFFF' : '#F1F5F9'}
+          />
+        </View>
 
         {/* ── CARTELERA ── */}
         {tabActiva === 'avisos' && (
@@ -164,7 +240,7 @@ export default function PantallaComunidad() {
             <View style={estilos.infoDirectorio}>
               <Ionicons name="flash" size={16} color="#991B1B" style={{ marginRight: 8 }} />
               <Text style={estilos.infoDirectorioTexto}>
-                Toca el número para llamar directamente
+                Toca el número para llamar directamente desde tu celular
               </Text>
             </View>
 
@@ -206,29 +282,43 @@ export default function PantallaComunidad() {
 const estilos = StyleSheet.create({
   contenedor: { flex: 1, backgroundColor: '#F8FAFC' },
 
-  // Header
   header: {
     backgroundColor: '#0F2540',
     paddingTop: 55,
-    paddingBottom: 24,
-    paddingHorizontal: 24,
+    paddingBottom: 22,
+    paddingHorizontal: 22,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  headerTextos: { flex: 1 },
+  headerTextos: { flex: 1, paddingRight: 12 },
   headerTitle: { color: '#FFF', fontSize: 22, fontWeight: '800', fontFamily: 'Inter_800ExtraBold' },
-  headerSub: { color: '#94A3B8', fontSize: 13, marginTop: 3, fontFamily: 'Inter_500Medium' },
-  headerIcono: {
+  headerSub: { color: '#94A3B8', fontSize: 13, marginTop: 4, fontFamily: 'Inter_500Medium' },
+
+  btnPerfilHeader: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 12,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
+    position: 'relative',
+  },
+  avatarHeaderImg: { width: 44, height: 44, borderRadius: 22 },
+  puntoActivo: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 13,
+    height: 13,
+    borderRadius: 6.5,
+    backgroundColor: '#10B981',
+    borderWidth: 2,
+    borderColor: '#0F2540',
   },
 
-  // Banner offline
   bannerOffline: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -240,7 +330,6 @@ const estilos = StyleSheet.create({
   },
   bannerOfflineTexto: { color: '#854D0E', fontSize: 13, fontWeight: '600', fontFamily: 'Inter_600SemiBold' },
 
-  // Tabs
   tabsRow: {
     flexDirection: 'row',
     backgroundColor: '#FFF',
@@ -255,7 +344,7 @@ const estilos = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    borderBottomWidth: 2,
+    borderBottomWidth: 2.5,
     borderBottomColor: 'transparent',
     marginBottom: -1,
   },
@@ -270,13 +359,13 @@ const estilos = StyleSheet.create({
   },
   tabTextoActivo: {
     color: '#0F2540',
-    fontWeight: '700',
-    fontFamily: 'Inter_700Bold',
+    fontWeight: '800',
+    fontFamily: 'Inter_800ExtraBold',
   },
   badge: {
     backgroundColor: '#0F2540',
     borderRadius: 10,
-    paddingHorizontal: 6,
+    paddingHorizontal: 7,
     paddingVertical: 1,
     marginLeft: 6,
   },
@@ -287,21 +376,64 @@ const estilos = StyleSheet.create({
     fontFamily: 'Inter_700Bold',
   },
 
-  // Contenido scroll
   contenido: {
     padding: 20,
     paddingBottom: 32,
   },
 
+  // Card Notificaciones
+  cardNotificaciones: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    elevation: 2,
+    shadowColor: '#0F2540',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+  },
+  iconoNotificacion: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  textosNotificacion: { flex: 1, paddingRight: 10 },
+  tituloNotificacion: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0F2540',
+    fontFamily: 'Inter_800ExtraBold',
+    marginBottom: 2,
+  },
+  subtituloNotificacion: {
+    fontSize: 12,
+    color: '#64748B',
+    lineHeight: 16,
+    fontFamily: 'Inter_500Medium',
+  },
+
   // Cartelera
   cardAnuncio: {
     backgroundColor: '#FFF',
-    borderRadius: 14,
+    borderRadius: 16,
     marginBottom: 14,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#F1F5F9',
-    elevation: 1,
+    borderColor: '#E2E8F0',
+    elevation: 2,
+    shadowColor: '#0F2540',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
   },
   franjaCategoria: {
     flexDirection: 'row',
@@ -320,15 +452,15 @@ const estilos = StyleSheet.create({
     fontFamily: 'Inter_600SemiBold',
   },
   cuerpoAnuncio: {
-    padding: 16,
+    padding: 18,
   },
   tituloAnuncio: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#0F2540',
     marginBottom: 6,
     lineHeight: 21,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: 'Inter_800ExtraBold',
   },
   contenidoAnuncio: {
     fontSize: 14,
@@ -343,7 +475,7 @@ const estilos = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FEE2E2',
     padding: 12,
-    borderRadius: 10,
+    borderRadius: 12,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#FCA5A5',
@@ -356,14 +488,18 @@ const estilos = StyleSheet.create({
   },
   cardEmergencia: {
     backgroundColor: '#FFF',
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#F1F5F9',
-    elevation: 1,
+    borderColor: '#E2E8F0',
+    elevation: 2,
+    shadowColor: '#0F2540',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
   },
   iconoEmergencia: {
     width: 44,
@@ -411,15 +547,16 @@ const estilos = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 10,
-    minWidth: 70,
-    minHeight: 52,
+    borderRadius: 12,
+    minWidth: 72,
+    minHeight: 50,
     marginLeft: 10,
+    elevation: 2,
   },
   btnLlamarNumero: {
     color: '#FFF',
-    fontWeight: '700',
+    fontWeight: '800',
     fontSize: 13,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: 'Inter_800ExtraBold',
   },
 });

@@ -17,10 +17,21 @@ export default function SubirComprobante() {
   const { recibos, cargar } = useRecibos();
   const reciboActual = recibos.find((r) => r.id === idObjetivo);
 
-  const [referencia, setReferencia] = useState('');
-  const [foto, setFoto] = useState<string | null>(null);
+  const [referencia, setReferencia] = useState(reciboActual?.referenciaBancaria || '');
+  const [foto, setFoto] = useState<string | null>(reciboActual?.comprobanteUrl || null);
   const [errorValidacion, setErrorValidacion] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
+
+  React.useEffect(() => {
+    if (reciboActual) {
+      if (reciboActual.referenciaBancaria && !referencia) {
+        setReferencia(reciboActual.referenciaBancaria);
+      }
+      if (reciboActual.comprobanteUrl && !foto) {
+        setFoto(reciboActual.comprobanteUrl);
+      }
+    }
+  }, [reciboActual]);
 
   const tomarFoto = async () => {
     try {
@@ -103,9 +114,12 @@ export default function SubirComprobante() {
     setErrorValidacion(null);
 
     try {
-      // Copiar la imagen a un directorio persistente antes de guardar la URI en SQLite
-      const uriPersistente = await copiarADirectorioPersistente(foto);
-      await repoRecibos.subirComprobante(idObjetivo, referencia.trim(), uriPersistente);
+      let uriFinal = foto;
+      // Solo copiar a documentos persistentes si es un archivo local nuevo (file:// o content://)
+      if (!foto.startsWith('http://') && !foto.startsWith('https://')) {
+        uriFinal = await copiarADirectorioPersistente(foto);
+      }
+      await repoRecibos.subirComprobante(idObjetivo, referencia.trim(), uriFinal);
       await cargar();
       // Volver directamente a la pantalla de detalle sin esperar
       router.back();

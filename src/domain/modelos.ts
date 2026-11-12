@@ -60,6 +60,7 @@ export interface UsuarioSesion {
   rol: RolUsuario;
   apartamento: string;
   aceptoLey1581: boolean;
+  avatarUrl?: string | null;
 }
 
 export function tieneMoraActiva(recibos: Recibo[]): boolean {

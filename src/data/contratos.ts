@@ -34,6 +34,9 @@ export interface IAuthRepository {
     obtenerSesionActivaLocal(): Promise<UsuarioSesion | null>;
     registrarAceptacionLey1581(idUsuario: string): Promise<UsuarioSesion>;
     cerrarSesion(): Promise<void>;
+    registrarResidente(datos: { nombre: string; correo: string; pin: string; apartamento: string }): Promise<UsuarioSesion>;
+    actualizarPin(idUsuario: string, pinActual: string, nuevoPin: string): Promise<void>;
+    actualizarAvatar(idUsuario: string, uriFoto: string): Promise<UsuarioSesion>;
 }
 
 export interface IComunidadRepository {
