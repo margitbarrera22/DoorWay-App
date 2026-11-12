@@ -12,7 +12,7 @@ export function ModalPrivacidadLey1581({ visible, alAceptar }: Props) {
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={estilos.fondo}>
-        <View style={estilos.card} accessibilityRole="alertdialog">
+        <View style={estilos.card} accessibilityRole="alert">
           <Text style={estilos.titulo}>🔐 Aviso de Privacidad · Ley 1581 de 2012</Text>
           <ScrollView style={estilos.scroll} nestedScrollEnabled>
             <Text style={estilos.texto}>
