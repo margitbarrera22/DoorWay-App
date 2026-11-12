@@ -2,6 +2,7 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Image } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFonts, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold, Inter_900Black } from '@expo-google-fonts/inter';
 import { Ionicons } from '@expo/vector-icons';
 import { useRecibos } from '../hooks/RecibosContext';
@@ -10,6 +11,7 @@ import { BarraNavegacionModulos } from '../components/BarraNavegacionModulos';
 
 export default function PantallaInicio() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { modoAdmin, recibos } = useRecibos();
   const { usuarioActual } = useAuth();
 
@@ -59,7 +61,7 @@ export default function PantallaInicio() {
   return (
     <View style={estilos.contenedor}>
       {/* Header corporativo */}
-      <View style={estilos.header}>
+      <View style={[estilos.header, { paddingTop: Math.max(insets.top, 24) + 12 }]}>
         <View style={estilos.headerContent}>
           <Text style={estilos.bienvenida}>Bienvenido/a 👋</Text>
           <Text style={estilos.nombre} numberOfLines={1}>
@@ -96,7 +98,7 @@ export default function PantallaInicio() {
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) + 70 }}>
         {/* Resumen Ejecutivo del Conjunto (Diseño Profesional Cohesivo) */}
         <View style={estilos.seccion}>
           <View style={estilos.cardResumenEjecutivo}>

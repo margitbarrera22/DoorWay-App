@@ -12,8 +12,8 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system/legacy';
 import { useFonts, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold, Inter_900Black } from '@expo-google-fonts/inter';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../hooks/AuthContext';
@@ -21,6 +21,7 @@ import { BarraNavegacionModulos } from '../components/BarraNavegacionModulos';
 
 export default function PantallaPerfil() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { usuarioActual, actualizarPin, actualizarAvatar, cerrarSesion } = useAuth();
 
   // Estados para cambio de PIN
@@ -73,13 +74,7 @@ export default function PantallaPerfil() {
 
       if (!res.canceled && res.assets && res.assets.length > 0) {
         const uriOriginal = res.assets[0].uri;
-        const nombreArchivo = `avatar_${usuarioActual?.id || 'usr'}_${Date.now()}.jpg`;
-        const carpeta = `${FileSystem.documentDirectory}avatares/`;
-        await FileSystem.makeDirectoryAsync(carpeta, { intermediates: true });
-        const destino = `${carpeta}${nombreArchivo}`;
-        await FileSystem.copyAsync({ from: uriOriginal, to: destino });
-
-        await actualizarAvatar(destino);
+        await actualizarAvatar(uriOriginal);
         Alert.alert('¡Foto actualizada!', 'Tu foto de perfil se ha guardado correctamente.');
       }
     } catch (e: any) {
@@ -150,7 +145,7 @@ export default function PantallaPerfil() {
   return (
     <View style={estilos.contenedor}>
       {/* Header corporativo */}
-      <View style={estilos.header}>
+      <View style={[estilos.header, { paddingTop: Math.max(insets.top, 24) + 12 }]}>
         <Pressable
           onPress={() => router.back()}
           accessibilityRole="button"
@@ -166,7 +161,13 @@ export default function PantallaPerfil() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={estilos.scrollContent} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={[
+          estilos.scrollContent,
+          { paddingBottom: Math.max(insets.bottom, 20) + 40 },
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Tarjeta de Avatar y Datos Principales */}
         <View style={estilos.cardPerfil}>
           <View style={estilos.avatarContainer}>

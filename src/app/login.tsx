@@ -14,12 +14,14 @@ import {
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFonts, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold, Inter_900Black } from '@expo-google-fonts/inter';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../hooks/AuthContext';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { iniciarSesion, registrarResidente, errorAuth, limpiarErrorAuth } = useAuth();
 
   // Modo: 'login' o 'registro' (exclusivo para residentes)
@@ -103,8 +105,19 @@ export default function LoginScreen() {
     <KeyboardAvoidingView
       style={estilos.contenedor}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
     >
-      <ScrollView contentContainerStyle={estilos.scrollContent} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={[
+          estilos.scrollContent,
+          {
+            paddingTop: Math.max(insets.top, 20) + 12,
+            paddingBottom: Math.max(insets.bottom, 24) + 60,
+          },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
         {/* Logo y Branding */}
         <View style={estilos.header}>
           <View style={estilos.logoContainer}>

@@ -13,6 +13,7 @@ import {
   Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFonts, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold } from '@expo-google-fonts/inter';
 import { Ionicons } from '@expo/vector-icons';
 import { Anuncio, ContactoEmergencia } from '../domain/modelos';
@@ -36,6 +37,7 @@ type TabActiva = 'avisos' | 'directorio';
 
 export default function PantallaComunidad() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { usuarioActual } = useAuth();
 
   const [anuncios, setAnuncios] = useState<Anuncio[]>([]);
@@ -99,7 +101,7 @@ export default function PantallaComunidad() {
   return (
     <View style={estilos.contenedor}>
       {/* Header corporativo */}
-      <View style={estilos.header}>
+      <View style={[estilos.header, { paddingTop: Math.max(insets.top, 24) + 12 }]}>
         <View style={estilos.headerTextos}>
           <Text style={estilos.headerTitle}>Avisos y Comunidad</Text>
           <Text style={estilos.headerSub}>Conjunto La Nueva Esperanza · Barrancabermeja</Text>
@@ -172,7 +174,7 @@ export default function PantallaComunidad() {
       </View>
 
       {/* Contenido según tab */}
-      <ScrollView contentContainerStyle={estilos.contenido}>
+      <ScrollView contentContainerStyle={[estilos.contenido, { paddingBottom: Math.max(insets.bottom, 16) + 70 }]}>
         {/* ── SECCIÓN DE PERMISOS DE NOTIFICACIONES ── */}
         <View style={estilos.cardNotificaciones}>
           <View style={estilos.iconoNotificacion}>

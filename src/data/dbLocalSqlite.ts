@@ -88,6 +88,13 @@ export function inicializarBaseLocal(): void {
       );
     `);
 
+    try {
+      dbSync.execSync('ALTER TABLE sesion_activa ADD COLUMN avatarUrl TEXT;');
+    } catch {}
+    try {
+      dbSync.execSync('ALTER TABLE usuarios_registrados ADD COLUMN avatarUrl TEXT;');
+    } catch {}
+
     // Sembrar teléfonos reales de Barrancabermeja automáticamente desde el primer arranque sin red
     for (const c of SEMILLAS_EMERGENCIAS_BARRANCABERMEJA) {
       dbSync.runSync(
@@ -321,47 +328,94 @@ export class DbLocalSqliteRepository implements IRecibosRepository {
 
   // --- PERSISTENCIA DE SESIÓN ACTIVA Y LEY 1581 EN SQLITE ---
   async guardarSesionEnSqlite(usuario: UsuarioSesion): Promise<void> {
-    if (!this.db) await this.inicializarBaseDatos();
-    if (!this.db) return;
     try {
-      await this.db.runAsync('ALTER TABLE sesion_activa ADD COLUMN avatarUrl TEXT;');
-    } catch {}
-    await this.db.runAsync('DELETE FROM sesion_activa;');
-    await this.db.runAsync(
-      `INSERT INTO sesion_activa (id, nombre, correo, rol, apartamento, acepto_ley1581, avatarUrl)
-       VALUES (?, ?, ?, ?, ?, ?, ?);`,
-      [
-        usuario.id,
-        usuario.nombre,
-        usuario.correo,
-        usuario.rol,
-        usuario.apartamento,
-        usuario.aceptoLey1581 ? 1 : 0,
-        usuario.avatarUrl || null,
-      ]
-    );
+      if (!this.db) await this.inicializarBaseDatos();
+      if (!this.db) return;
+
+      try {
+        await this.db.runAsync('ALTER TABLE sesion_activa ADD COLUMN avatarUrl TEXT;');
+      } catch {}
+
+      await this.db.runAsync('DELETE FROM sesion_activa;');
+      try {
+        await this.db.runAsync(
+          `INSERT INTO sesion_activa (id, nombre, correo, rol, apartamento, acepto_ley1581, avatarUrl)
+           VALUES (?, ?, ?, ?, ?, ?, ?);`,
+          [
+            usuario.id,
+            usuario.nombre,
+            usuario.correo,
+            usuario.rol,
+            usuario.apartamento,
+            usuario.aceptoLey1581 ? 1 : 0,
+            usuario.avatarUrl || null,
+          ]
+        );
+      } catch {
+        // En caso de discrepancia de esquema previo, recreamos limpiamente la tabla
+        await this.db.execAsync(`
+          DROP TABLE IF EXISTS sesion_activa;
+          CREATE TABLE sesion_activa (
+            id TEXT PRIMARY KEY NOT NULL,
+            nombre TEXT NOT NULL,
+            correo TEXT NOT NULL,
+            rol TEXT NOT NULL,
+            apartamento TEXT NOT NULL,
+            acepto_ley1581 INTEGER DEFAULT 0,
+            avatarUrl TEXT
+          );
+        `);
+        await this.db.runAsync(
+          `INSERT INTO sesion_activa (id, nombre, correo, rol, apartamento, acepto_ley1581, avatarUrl)
+           VALUES (?, ?, ?, ?, ?, ?, ?);`,
+          [
+            usuario.id,
+            usuario.nombre,
+            usuario.correo,
+            usuario.rol,
+            usuario.apartamento,
+            usuario.aceptoLey1581 ? 1 : 0,
+            usuario.avatarUrl || null,
+          ]
+        );
+      }
+    } catch (error) {
+      console.warn('Error al guardar sesión en SQLite:', error);
+    }
   }
 
   async leerSesionDeSqlite(): Promise<UsuarioSesion | null> {
-    if (!this.db) await this.inicializarBaseDatos();
-    if (!this.db) return null;
-    const fila = await this.db.getFirstAsync<any>('SELECT * FROM sesion_activa LIMIT 1;');
-    if (!fila) return null;
-    return {
-      id: fila.id,
-      nombre: fila.nombre,
-      correo: fila.correo,
-      rol: fila.rol as RolUsuario,
-      apartamento: fila.apartamento,
-      aceptoLey1581: Boolean(fila.acepto_ley1581),
-      avatarUrl: fila.avatarUrl || null,
-    };
+    try {
+      if (!this.db) await this.inicializarBaseDatos();
+      if (!this.db) return null;
+      try {
+        await this.db.runAsync('ALTER TABLE sesion_activa ADD COLUMN avatarUrl TEXT;');
+      } catch {}
+      const fila = await this.db.getFirstAsync<any>('SELECT * FROM sesion_activa LIMIT 1;');
+      if (!fila) return null;
+      return {
+        id: fila.id,
+        nombre: fila.nombre,
+        correo: fila.correo,
+        rol: fila.rol as RolUsuario,
+        apartamento: fila.apartamento,
+        aceptoLey1581: Boolean(fila.acepto_ley1581),
+        avatarUrl: fila.avatarUrl || null,
+      };
+    } catch (error) {
+      console.warn('Error al leer sesión de SQLite:', error);
+      return null;
+    }
   }
 
   async borrarSesionDeSqlite(): Promise<void> {
-    if (!this.db) await this.inicializarBaseDatos();
-    if (!this.db) return;
-    await this.db.runAsync('DELETE FROM sesion_activa;');
+    try {
+      if (!this.db) await this.inicializarBaseDatos();
+      if (!this.db) return;
+      await this.db.runAsync('DELETE FROM sesion_activa;');
+    } catch (error) {
+      console.warn('Error al borrar sesión de SQLite:', error);
+    }
   }
 
   async guardarUsuarioRegistrado(usuario: {
@@ -374,34 +428,48 @@ export class DbLocalSqliteRepository implements IRecibosRepository {
     acepto_ley1581?: boolean;
     avatarUrl?: string | null;
   }): Promise<void> {
-    if (!this.db) await this.inicializarBaseDatos();
-    if (!this.db) return;
-    await this.db.runAsync(
-      `INSERT OR REPLACE INTO usuarios_registrados (id, nombre, correo, pin_acceso, rol, apartamento, acepto_ley1581, avatarUrl)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
-      [
-        usuario.id,
-        usuario.nombre,
-        usuario.correo.toLowerCase(),
-        usuario.pin_acceso,
-        usuario.rol,
-        usuario.apartamento,
-        usuario.acepto_ley1581 ? 1 : 0,
-        usuario.avatarUrl || null,
-      ]
-    );
+    try {
+      if (!this.db) await this.inicializarBaseDatos();
+      if (!this.db) return;
+
+      try {
+        await this.db.runAsync('ALTER TABLE usuarios_registrados ADD COLUMN avatarUrl TEXT;');
+      } catch {}
+
+      await this.db.runAsync(
+        `INSERT OR REPLACE INTO usuarios_registrados (id, nombre, correo, pin_acceso, rol, apartamento, acepto_ley1581, avatarUrl)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+        [
+          usuario.id,
+          usuario.nombre,
+          usuario.correo.toLowerCase(),
+          usuario.pin_acceso,
+          usuario.rol,
+          usuario.apartamento,
+          usuario.acepto_ley1581 ? 1 : 0,
+          usuario.avatarUrl || null,
+        ]
+      );
+    } catch (error) {
+      console.warn('Error al guardar usuario en SQLite:', error);
+    }
   }
 
   async buscarUsuarioRegistrado(entrada: string, pin: string): Promise<any | null> {
-    if (!this.db) await this.inicializarBaseDatos();
-    if (!this.db) return null;
-    const e = entrada.trim().toLowerCase();
-    const fila = await this.db.getFirstAsync<any>(
-      `SELECT * FROM usuarios_registrados 
-       WHERE (LOWER(correo) = ? OR LOWER(apartamento) LIKE ? OR id = ?) AND pin_acceso = ? LIMIT 1;`,
-      [e, `%${e}%`, e, pin.trim()]
-    );
-    return fila || null;
+    try {
+      if (!this.db) await this.inicializarBaseDatos();
+      if (!this.db) return null;
+      const e = entrada.trim().toLowerCase();
+      const fila = await this.db.getFirstAsync<any>(
+        `SELECT * FROM usuarios_registrados 
+         WHERE (LOWER(correo) = ? OR LOWER(apartamento) LIKE ? OR id = ?) AND pin_acceso = ? LIMIT 1;`,
+        [e, `%${e}%`, e, pin.trim()]
+      );
+      return fila || null;
+    } catch (error) {
+      console.warn('Error buscando usuario registrado en SQLite:', error);
+      return null;
+    }
   }
 
   async actualizarPinUsuario(idUsuario: string, nuevoPin: string): Promise<void> {

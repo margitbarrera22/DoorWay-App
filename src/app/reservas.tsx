@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator, Image } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Calendar, DateData } from 'react-native-calendars';
 import { useFonts, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold } from '@expo-google-fonts/inter';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,26 +34,35 @@ function inicializarTablaReservas() {
 }
 
 function guardarReservaLocal(r: Reserva): void {
-  inicializarTablaReservas();
-  db.runSync(
-    `INSERT OR REPLACE INTO reservas_local (id, apartamento, areaComun, fecha, bloqueHorario, estado, createdAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?);`,
-    [r.id, r.apartamento, r.areaComun, r.fecha, r.bloqueHorario, r.estado, r.createdAt ?? new Date().toISOString()]
-  );
+  try {
+    inicializarTablaReservas();
+    db.runSync(
+      `INSERT OR REPLACE INTO reservas_local (id, apartamento, areaComun, fecha, bloqueHorario, estado, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?);`,
+      [r.id, r.apartamento, r.areaComun, r.fecha, r.bloqueHorario, r.estado, r.createdAt ?? new Date().toISOString()]
+    );
+  } catch (e) {
+    console.warn('Error guardando reserva en SQLite:', e);
+  }
 }
 
 function leerReservasLocales(): Reserva[] {
-  inicializarTablaReservas();
-  const filas = db.getAllSync<any>('SELECT * FROM reservas_local ORDER BY createdAt DESC;');
-  return filas.map((f) => ({
-    id: f.id,
-    apartamento: f.apartamento,
-    areaComun: f.areaComun as AreaComun,
-    fecha: f.fecha,
-    bloqueHorario: f.bloqueHorario as BloqueHorario,
-    estado: f.estado as 'Confirmada' | 'Cancelada',
-    createdAt: f.createdAt,
-  }));
+  try {
+    inicializarTablaReservas();
+    const filas = db.getAllSync<any>('SELECT * FROM reservas_local ORDER BY createdAt DESC;');
+    return filas.map((f) => ({
+      id: f.id,
+      apartamento: f.apartamento,
+      areaComun: f.areaComun as AreaComun,
+      fecha: f.fecha,
+      bloqueHorario: f.bloqueHorario as BloqueHorario,
+      estado: f.estado as 'Confirmada' | 'Cancelada',
+      createdAt: f.createdAt,
+    }));
+  } catch (e) {
+    console.warn('Error leyendo reservas locales:', e);
+    return [];
+  }
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -62,6 +72,7 @@ const BLOQUES_OFICIALES: BloqueHorario[] = ['09:00 - 13:00', '14:00 - 18:00', '1
 
 export default function PantallaReservas() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { recibos, modoAdmin } = useRecibos();
   const { usuarioActual } = useAuth();
   const veredictoMora = evaluarDerechoAReservar(recibos);
@@ -144,7 +155,7 @@ export default function PantallaReservas() {
   return (
     <View style={estilos.contenedor}>
       {/* Header corporativo */}
-      <View style={estilos.header}>
+      <View style={[estilos.header, { paddingTop: Math.max(insets.top, 24) + 12 }]}>
         <View style={{ flex: 1, paddingRight: 10 }}>
           <Text style={estilos.headerTitle}>
             {modoAdmin ? 'Gestión de Áreas Comunes' : 'Reservar Área Común'}

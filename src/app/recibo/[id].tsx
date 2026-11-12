@@ -2,12 +2,14 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, Image, Pressable, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRecibos } from '../../hooks/RecibosContext';
 
 export default function DetalleRecibo() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { recibos, modoAdmin, conciliar, cargar } = useRecibos();
   const recibo = recibos.find((r) => r.id === id);
 
@@ -57,8 +59,11 @@ export default function DetalleRecibo() {
   };
 
   return (
-    <ScrollView style={estilos.contenedor} contentContainerStyle={{ paddingBottom: 40 }}>
-      <View style={estilos.header}>
+    <ScrollView
+      style={estilos.contenedor}
+      contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 20) + 40 }}
+    >
+      <View style={[estilos.header, { paddingTop: Math.max(insets.top, 24) + 12 }]}>
         <Pressable
           onPress={() => router.back()}
           accessibilityRole="button"

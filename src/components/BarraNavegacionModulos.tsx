@@ -2,11 +2,13 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 export function BarraNavegacionModulos() {
   const router = useRouter();
   const rutaActual = usePathname();
+  const insets = useSafeAreaInsets();
 
   const pestañas = [
     { titulo: 'Inicio', icono: 'home', ruta: '/inicio' },
@@ -16,7 +18,7 @@ export function BarraNavegacionModulos() {
   ];
 
   return (
-    <View style={estilos.contenedor}>
+    <View style={[estilos.contenedor, { paddingBottom: Math.max(insets.bottom, 10) }]}>
       {pestañas.map((p) => {
         const activa = rutaActual === p.ruta;
         const iconoNombre = activa ? p.icono : `${p.icono}-outline`;

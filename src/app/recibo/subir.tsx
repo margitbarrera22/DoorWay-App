@@ -2,8 +2,8 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Image, ActivityIndicator, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system/legacy';
 import { Ionicons } from '@expo/vector-icons';
 import { useRecibos } from '../../hooks/RecibosContext';
 import { RepositorioRecibosHibrido } from '../../data/RepositorioRecibos';
@@ -12,6 +12,7 @@ const repoRecibos = new RepositorioRecibosHibrido();
 
 export default function SubirComprobante() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ id?: string; idRecibo?: string }>();
   const idObjetivo = params.id || params.idRecibo || 'rec-01';
   const { recibos, cargar } = useRecibos();
@@ -81,24 +82,6 @@ export default function SubirComprobante() {
     }
   };
 
-  /**
-   * Copia la imagen desde el URI temporal (cámara/galería) al directorio de documentos
-   * del app, que es persistente y siempre accesible incluso entre sesiones.
-   */
-  const copiarADirectorioPersistente = async (uriOrigen: string): Promise<string> => {
-    try {
-      const nombre = `soporte_${Date.now()}.jpg`;
-      const destino = `${FileSystem.documentDirectory}soportes/${nombre}`;
-      // Crear la carpeta si no existe
-      await FileSystem.makeDirectoryAsync(`${FileSystem.documentDirectory}soportes`, { intermediates: true });
-      await FileSystem.copyAsync({ from: uriOrigen, to: destino });
-      return destino;
-    } catch {
-      // Si falla la copia, usa el URI original (funciona al menos para esta sesión)
-      return uriOrigen;
-    }
-  };
-
   const handleEnviar = async () => {
     if (guardando) return;
     if (!referencia || referencia.trim().length < 4) {
@@ -114,12 +97,7 @@ export default function SubirComprobante() {
     setErrorValidacion(null);
 
     try {
-      let uriFinal = foto;
-      // Solo copiar a documentos persistentes si es un archivo local nuevo (file:// o content://)
-      if (!foto.startsWith('http://') && !foto.startsWith('https://')) {
-        uriFinal = await copiarADirectorioPersistente(foto);
-      }
-      await repoRecibos.subirComprobante(idObjetivo, referencia.trim(), uriFinal);
+      await repoRecibos.subirComprobante(idObjetivo, referencia.trim(), foto);
       await cargar();
       // Volver directamente a la pantalla de detalle sin esperar
       router.back();
@@ -134,8 +112,11 @@ export default function SubirComprobante() {
   const montoTexto = reciboActual ? `$${reciboActual.monto.toLocaleString('es-CO')} COP` : '$185.000 COP';
 
   return (
-    <ScrollView style={estilos.contenedor} contentContainerStyle={{ paddingBottom: 40 }}>
-      <View style={estilos.header}>
+    <ScrollView
+      style={estilos.contenedor}
+      contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 20) + 40 }}
+    >
+      <View style={[estilos.header, { paddingTop: Math.max(insets.top, 24) + 12 }]}>
         <Pressable
           onPress={() => router.back()}
           accessibilityRole="button"

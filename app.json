@@ -14,6 +14,7 @@
     },
     "android": {
       "package": "com.unipaz.doorwayapp",
+      "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0F2540"

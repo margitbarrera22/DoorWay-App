@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../hooks/AuthContext';
 import { RecibosProvider } from '../hooks/RecibosContext';
 import { COLORES } from '../theme/tema';
@@ -88,10 +89,12 @@ function NavegacionProtegida() {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <RecibosProvider>
-        <NavegacionProtegida />
-      </RecibosProvider>
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <RecibosProvider>
+          <NavegacionProtegida />
+        </RecibosProvider>
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
