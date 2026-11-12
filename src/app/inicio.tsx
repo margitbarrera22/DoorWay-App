@@ -7,6 +7,7 @@ import { useFonts, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800E
 import { Ionicons } from '@expo/vector-icons';
 import { useRecibos } from '../hooks/RecibosContext';
 import { useAuth } from '../hooks/AuthContext';
+import { filtrarRecibosPorUsuario, evaluarDerechoAReservar } from '../domain/reglasNegocio';
 import { BarraNavegacionModulos } from '../components/BarraNavegacionModulos';
 
 export default function PantallaInicio() {
@@ -27,12 +28,22 @@ export default function PantallaInicio() {
     return <ActivityIndicator size="large" color="#0F2540" style={{ flex: 1, justifyContent: 'center' }} />;
   }
 
+  const esAdmin = usuarioActual?.rol === 'admin' || modoAdmin;
+  const misRecibos = esAdmin ? recibos : filtrarRecibosPorUsuario(recibos, usuarioActual);
+  const veredictoUsuario = esAdmin
+    ? { permitido: true, cantidadEnMora: 0, montoTotalMora: 0 }
+    : evaluarDerechoAReservar(misRecibos);
+
+  // Métricas globales (sólo para administración)
   const totalRecibos = recibos.length;
   const recibosMora = recibos.filter((r) => r.estado === 'En mora').length;
   const recibosPagados = recibos.filter((r) => r.estado === 'Pagado').length;
-  const recibosValidacion = recibos.filter((r) => r.estado === 'En validación').length;
-
   const porcentajeAlDia = totalRecibos > 0 ? Math.round((recibosPagados / totalRecibos) * 100) : 100;
+
+  // Métricas personales (para el residente)
+  const misRecibosTotales = misRecibos.length > 0 ? misRecibos.length : 1;
+  const misRecibosPagados = misRecibos.filter((r) => r.estado === 'Pagado').length;
+  const misRecibosEnMora = misRecibos.filter((r) => r.estado === 'En mora').length;
 
   const accesos = [
     {
@@ -99,60 +110,168 @@ export default function PantallaInicio() {
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) + 70 }}>
-        {/* Resumen Ejecutivo del Conjunto (Diseño Profesional Cohesivo) */}
+        {/* RESUMEN: Condicional según el rol (Admin ve Copropiedad global, Residente ve su estado propio) */}
         <View style={estilos.seccion}>
-          <View style={estilos.cardResumenEjecutivo}>
-            <View style={estilos.resumenHeader}>
-              <View>
-                <Text style={estilos.tituloResumen}>Resumen del Conjunto</Text>
-                <Text style={estilos.subtituloResumen}>Balance consolidado de la copropiedad</Text>
+          {esAdmin ? (
+            /* Tarjeta Administrador: Resumen de toda la copropiedad */
+            <View style={estilos.cardResumenEjecutivo}>
+              <View style={estilos.resumenHeader}>
+                <View>
+                  <Text style={estilos.tituloResumen}>Resumen del Conjunto</Text>
+                  <Text style={estilos.subtituloResumen}>Balance consolidado de la copropiedad</Text>
+                </View>
+                <View style={estilos.badgePeriodo}>
+                  <Text style={estilos.badgePeriodoTexto}>2026</Text>
+                </View>
               </View>
-              <View style={estilos.badgePeriodo}>
-                <Text style={estilos.badgePeriodoTexto}>2026</Text>
+
+              {/* Fila de Métricas Copropiedad */}
+              <View style={estilos.filaMetricas}>
+                <View style={estilos.itemMetrica}>
+                  <View style={estilos.iconoMetricaTotal}>
+                    <Ionicons name="documents-outline" size={18} color="#0F2540" />
+                  </View>
+                  <Text style={estilos.numeroMetrica}>{totalRecibos}</Text>
+                  <Text style={estilos.labelMetrica}>Recibos</Text>
+                </View>
+
+                <View style={estilos.itemMetrica}>
+                  <View style={estilos.iconoMetricaPagado}>
+                    <Ionicons name="checkmark-circle-outline" size={18} color="#166534" />
+                  </View>
+                  <Text style={[estilos.numeroMetrica, { color: '#166534' }]}>{recibosPagados}</Text>
+                  <Text style={estilos.labelMetrica}>Pagados</Text>
+                </View>
+
+                <View style={estilos.itemMetrica}>
+                  <View style={estilos.iconoMetricaMora}>
+                    <Ionicons name="alert-circle-outline" size={18} color="#991B1B" />
+                  </View>
+                  <Text style={[estilos.numeroMetrica, { color: '#991B1B' }]}>{recibosMora}</Text>
+                  <Text style={estilos.labelMetrica}>En mora</Text>
+                </View>
+              </View>
+
+              {/* Barra de progreso de recaudo global */}
+              <View style={estilos.contenedorProgreso}>
+                <View style={estilos.filaTextoProgreso}>
+                  <Text style={estilos.textoProgresoLabel}>Efectividad de recaudo</Text>
+                  <Text style={estilos.textoProgresoValor}>{porcentajeAlDia}%</Text>
+                </View>
+                <View style={estilos.barraFondo}>
+                  <View style={[estilos.barraRelleno, { width: `${porcentajeAlDia}%` }]} />
+                </View>
               </View>
             </View>
-
-            {/* Fila de Métricas */}
-            <View style={estilos.filaMetricas}>
-              {/* Tarjeta 1: Total */}
-              <View style={estilos.itemMetrica}>
-                <View style={estilos.iconoMetricaTotal}>
-                  <Ionicons name="documents-outline" size={18} color="#0F2540" />
+          ) : (
+            /* Tarjeta Residente: Su propio estado de cuenta */
+            <View style={estilos.cardResumenEjecutivo}>
+              <View style={estilos.resumenHeader}>
+                <View>
+                  <Text style={estilos.tituloResumen}>Mi Estado de Cuenta</Text>
+                  <Text style={estilos.subtituloResumen}>
+                    {usuarioActual?.apartamento || 'Torre B - Apto 302'} · Administración
+                  </Text>
                 </View>
-                <Text style={estilos.numeroMetrica}>{totalRecibos}</Text>
-                <Text style={estilos.labelMetrica}>Recibos</Text>
+                <View
+                  style={[
+                    estilos.badgePeriodo,
+                    {
+                      backgroundColor: veredictoUsuario.permitido ? '#DCFCE7' : '#FEE2E2',
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      estilos.badgePeriodoTexto,
+                      {
+                        color: veredictoUsuario.permitido ? '#166534' : '#991B1B',
+                      },
+                    ]}
+                  >
+                    {veredictoUsuario.permitido ? 'Al Día' : 'En Mora'}
+                  </Text>
+                </View>
               </View>
 
-              {/* Tarjeta 2: Pagados */}
-              <View style={estilos.itemMetrica}>
-                <View style={estilos.iconoMetricaPagado}>
-                  <Ionicons name="checkmark-circle-outline" size={18} color="#166534" />
+              {/* Fila de Métricas Personales */}
+              <View style={estilos.filaMetricas}>
+                <View style={estilos.itemMetrica}>
+                  <View style={estilos.iconoMetricaTotal}>
+                    <Ionicons name="receipt-outline" size={18} color="#0F2540" />
+                  </View>
+                  <Text style={estilos.numeroMetrica}>{misRecibosTotales}</Text>
+                  <Text style={estilos.labelMetrica}>Mis Recibos</Text>
                 </View>
-                <Text style={[estilos.numeroMetrica, { color: '#166534' }]}>{recibosPagados}</Text>
-                <Text style={estilos.labelMetrica}>Pagados</Text>
+
+                <View style={estilos.itemMetrica}>
+                  <View style={estilos.iconoMetricaPagado}>
+                    <Ionicons name="checkmark-done-circle-outline" size={18} color="#166534" />
+                  </View>
+                  <Text style={[estilos.numeroMetrica, { color: '#166534' }]}>{misRecibosPagados}</Text>
+                  <Text style={estilos.labelMetrica}>Pagados</Text>
+                </View>
+
+                <View style={estilos.itemMetrica}>
+                  <View
+                    style={[
+                      estilos.iconoMetricaMora,
+                      { backgroundColor: misRecibosEnMora > 0 ? '#FEE2E2' : '#DCFCE7' },
+                    ]}
+                  >
+                    <Ionicons
+                      name={misRecibosEnMora > 0 ? 'alert-circle-outline' : 'shield-checkmark-outline'}
+                      size={18}
+                      color={misRecibosEnMora > 0 ? '#991B1B' : '#166534'}
+                    />
+                  </View>
+                  <Text
+                    style={[
+                      estilos.numeroMetrica,
+                      { color: misRecibosEnMora > 0 ? '#991B1B' : '#166534' },
+                    ]}
+                  >
+                    {misRecibosEnMora}
+                  </Text>
+                  <Text style={estilos.labelMetrica}>Pendientes</Text>
+                </View>
               </View>
 
-              {/* Tarjeta 3: En Mora */}
-              <View style={estilos.itemMetrica}>
-                <View style={estilos.iconoMetricaMora}>
-                  <Ionicons name="alert-circle-outline" size={18} color="#991B1B" />
-                </View>
-                <Text style={[estilos.numeroMetrica, { color: '#991B1B' }]}>{recibosMora}</Text>
-                <Text style={estilos.labelMetrica}>En mora</Text>
+              {/* Mensaje de habilitación de áreas comunes */}
+              <View
+                style={{
+                  backgroundColor: veredictoUsuario.permitido ? '#F0FDF4' : '#FEF2F2',
+                  borderWidth: 1,
+                  borderColor: veredictoUsuario.permitido ? '#BBF7D0' : '#FECACA',
+                  borderRadius: 10,
+                  padding: 12,
+                  marginTop: 14,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                }}
+              >
+                <Ionicons
+                  name={veredictoUsuario.permitido ? 'checkmark-circle' : 'alert-circle'}
+                  size={20}
+                  color={veredictoUsuario.permitido ? '#166534' : '#DC2626'}
+                  style={{ marginRight: 8 }}
+                />
+                <Text
+                  style={{
+                    color: veredictoUsuario.permitido ? '#166534' : '#DC2626',
+                    fontSize: 12,
+                    fontFamily: 'Inter_600SemiBold',
+                    flex: 1,
+                    lineHeight: 17,
+                  }}
+                >
+                  {veredictoUsuario.permitido
+                    ? 'Habilitado: Tienes derecho a reservar el Salón Social y el Kiosco BBQ.'
+                    : veredictoUsuario.motivoBloqueo}
+                </Text>
               </View>
             </View>
-
-            {/* Barra de progreso de recaudo */}
-            <View style={estilos.contenedorProgreso}>
-              <View style={estilos.filaTextoProgreso}>
-                <Text style={estilos.textoProgresoLabel}>Efectividad de recaudo</Text>
-                <Text style={estilos.textoProgresoValor}>{porcentajeAlDia}%</Text>
-              </View>
-              <View style={estilos.barraFondo}>
-                <View style={[estilos.barraRelleno, { width: `${porcentajeAlDia}%` }]} />
-              </View>
-            </View>
-          </View>
+          )}
         </View>
 
         {/* Accesos rápidos */}

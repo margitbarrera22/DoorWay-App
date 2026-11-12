@@ -20,7 +20,7 @@ import { useAuth } from '../hooks/AuthContext';
 import { TarjetaRecibo } from '../components/TarjetaRecibo';
 import { EstadoPantalla } from '../components/EstadoPantalla';
 import { Recibo, EstadoRecibo } from '../domain/modelos';
-import { evaluarDerechoAReservar } from '../domain/reglasNegocio';
+import { evaluarDerechoAReservar, filtrarRecibosPorUsuario } from '../domain/reglasNegocio';
 import { BarraNavegacionModulos } from '../components/BarraNavegacionModulos';
 import { ModalPrivacidadLey1581 } from '../components/ModalPrivacidadLey1581';
 
@@ -92,16 +92,7 @@ export default function PantallaCartera() {
   });
 
   // ── MODO RESIDENTE: RECIBOS PROPIOS Y RECIBO ACTUAL HERO ──
-  const aptoUsuario = (usuarioActual?.apartamento || '').toLowerCase().trim();
-  const nombreUsuario = (usuarioActual?.nombre || '').toLowerCase().trim();
-
-  const misRecibos = recibos.filter((r) => {
-    const rApto = (r.apartamento || '').toLowerCase().trim();
-    const rNom = (r.residenteNombre || '').toLowerCase().trim();
-    if (aptoUsuario && (rApto === aptoUsuario || rApto.includes(aptoUsuario))) return true;
-    if (nombreUsuario && (rNom === nombreUsuario || rNom.includes(nombreUsuario))) return true;
-    return false;
-  });
+  const misRecibos = filtrarRecibosPorUsuario(recibos, usuarioActual);
 
   // Si un residente nuevo se registró y aún no tiene recibo en la base, creamos su primer recibo activo
   const recibosFinalesResidente: Recibo[] =
@@ -115,8 +106,8 @@ export default function PantallaCartera() {
             periodo: 'Noviembre 2026',
             monto: 185000,
             fechaVencimiento: '2026-11-30',
-            estado: 'En mora' as EstadoRecibo,
-            referenciaBancaria: null,
+            estado: 'Pagado' as EstadoRecibo,
+            referenciaBancaria: 'REF-REG-001',
             comprobanteUrl: null,
             observacionAdmin: null,
           },

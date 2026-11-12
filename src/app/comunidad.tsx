@@ -18,7 +18,12 @@ import { useFonts, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800E
 import { Ionicons } from '@expo/vector-icons';
 import { Anuncio, ContactoEmergencia } from '../domain/modelos';
 import { RepositorioComunidadHibrido } from '../data/RepositorioComunidadHibrido';
-import { guardarPreferenciaSqlite, obtenerPreferenciaSqlite } from '../data/dbLocalSqlite';
+import {
+  guardarPreferenciaSqlite,
+  obtenerPreferenciaSqlite,
+  leerAnunciosDeSqlite,
+  leerDirectorioDeSqlite,
+} from '../data/dbLocalSqlite';
 import { useAuth } from '../hooks/AuthContext';
 import { EstadoPantalla } from '../components/EstadoPantalla';
 import { BarraNavegacionModulos } from '../components/BarraNavegacionModulos';
@@ -40,9 +45,22 @@ export default function PantallaComunidad() {
   const insets = useSafeAreaInsets();
   const { usuarioActual } = useAuth();
 
-  const [anuncios, setAnuncios] = useState<Anuncio[]>([]);
-  const [contactos, setContactos] = useState<ContactoEmergencia[]>([]);
-  const [cargando, setCargando] = useState(true);
+  const [anuncios, setAnuncios] = useState<Anuncio[]>(() => {
+    try {
+      return leerAnunciosDeSqlite();
+    } catch {
+      return [];
+    }
+  });
+  const [contactos, setContactos] = useState<ContactoEmergencia[]>(() => {
+    try {
+      return leerDirectorioDeSqlite();
+    } catch {
+      return [];
+    }
+  });
+  // Carga instantánea: no bloquea con spinner, muestra la caché local inmediatamente
+  const [cargando, setCargando] = useState(false);
   const [modoOffline, setModoOffline] = useState(false);
   const [tabActiva, setTabActiva] = useState<TabActiva>('avisos');
   const [notificacionesActivas, setNotificacionesActivas] = useState(true);
@@ -54,28 +72,35 @@ export default function PantallaComunidad() {
     Inter_800ExtraBold,
   });
 
-  async function cargarDatos() {
-    setCargando(true);
-    try {
-      const res = await repoComunidad.cargarComunidadCompleta();
-      setAnuncios(res.anuncios);
-      setContactos(res.contactos);
-      setModoOffline(res.desdeCacheSqlite);
-
-      // Cargar preferencia guardada de notificaciones
-      const pref = await obtenerPreferenciaSqlite('notificaciones_activadas');
-      if (pref !== null) {
-        setNotificacionesActivas(pref === 'true');
-      }
-    } catch (error) {
-      console.error('Error cargando comunidad:', error);
-    } finally {
-      setCargando(false);
-    }
-  }
-
   useEffect(() => {
-    cargarDatos();
+    let montado = true;
+    async function sincronizarEnSegundoPlano() {
+      try {
+        const res = await Promise.race([
+          repoComunidad.cargarComunidadCompleta(),
+          new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500)),
+        ]);
+        if (montado && res) {
+          if (res.anuncios && res.anuncios.length > 0) setAnuncios(res.anuncios);
+          if (res.contactos && res.contactos.length > 0) setContactos(res.contactos);
+          setModoOffline(Boolean(res.desdeCacheSqlite));
+        }
+      } catch {
+        // Red lenta o sin conexión: la vista ya está renderizada desde SQLite
+      }
+
+      try {
+        const pref = await obtenerPreferenciaSqlite('notificaciones_activadas');
+        if (montado && pref !== null) {
+          setNotificacionesActivas(pref === 'true');
+        }
+      } catch {}
+    }
+
+    sincronizarEnSegundoPlano();
+    return () => {
+      montado = false;
+    };
   }, []);
 
   const alternarNotificaciones = async (valor: boolean) => {

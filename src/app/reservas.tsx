@@ -1,7 +1,7 @@
 // src/app/reservas.tsx — Calendario real + Reserva funcional | Wilfran + Margit
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator, Image } from 'react-native';
-import { useRouter } from 'expo-router';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator, Image, Alert } from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Calendar, DateData } from 'react-native-calendars';
 import { useFonts, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold } from '@expo-google-fonts/inter';
@@ -9,7 +9,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRecibos } from '../hooks/RecibosContext';
 import { useAuth } from '../hooks/AuthContext';
 import { AreaComun, BloqueHorario, Reserva } from '../domain/modelos';
-import { evaluarDerechoAReservar } from '../domain/reglasNegocio';
+import { evaluarDerechoAReservar, filtrarRecibosPorUsuario } from '../domain/reglasNegocio';
+import { supabase } from '../data/RepositorioRecibos';
 import { BarraNavegacionModulos } from '../components/BarraNavegacionModulos';
 
 // ── Repositorio local de reservas en SQLite (sin Supabase, funciona offline) ──
@@ -75,7 +76,12 @@ export default function PantallaReservas() {
   const insets = useSafeAreaInsets();
   const { recibos, modoAdmin } = useRecibos();
   const { usuarioActual } = useAuth();
-  const veredictoMora = evaluarDerechoAReservar(recibos);
+
+  const esAdmin = usuarioActual?.rol === 'admin' || modoAdmin;
+  const misRecibos = esAdmin ? recibos : filtrarRecibosPorUsuario(recibos, usuarioActual);
+  const veredictoMora = esAdmin
+    ? { permitido: true, cantidadEnMora: 0, montoTotalMora: 0 }
+    : evaluarDerechoAReservar(misRecibos);
 
   const [area, setArea] = useState<AreaComun>('Salón Social');
   const [fecha, setFecha] = useState<string>('2026-11-15');
@@ -93,18 +99,54 @@ export default function PantallaReservas() {
     Inter_800ExtraBold,
   });
 
-  // Carga historial al abrir y al cambiar de rol
-  useEffect(() => {
+  // Sincronización en tiempo real con Supabase y SQLite local para concurrencia multi-cliente
+  const sincronizarReservas = useCallback(async () => {
+    // 1. Cargar local de inmediato para respuesta en 0ms
     setReservasGuardadas(leerReservasLocales());
-  }, [modoAdmin]);
 
-  const estaOcupadoPorOtro = (b: BloqueHorario) => {
-    // Bloqueo demo hardcodeado (simulación de otro residente)
-    if (area === 'Salón Social' && fecha === '2026-11-15' && b === '14:00 - 18:00') return true;
-    // Bloquea franjas que ya están confirmadas en la lista local
-    return reservasGuardadas.some(
+    // 2. Traer reservas remotas de Supabase para que ningún cliente reserve la misma franja
+    try {
+      const { data, error } = await supabase
+        .from('reservas')
+        .select('*')
+        .eq('estado', 'Confirmada');
+
+      if (!error && data && data.length > 0) {
+        for (const f of data) {
+          guardarReservaLocal({
+            id: f.id,
+            apartamento: f.apartamento,
+            areaComun: f.area_comun as AreaComun,
+            fecha: f.fecha,
+            bloqueHorario: f.bloque_horario as BloqueHorario,
+            estado: f.estado as 'Confirmada' | 'Cancelada',
+            createdAt: f.created_at,
+          });
+        }
+        setReservasGuardadas(leerReservasLocales());
+      }
+    } catch {}
+  }, []);
+
+  // Carga historial al abrir y al cambiar de fecha o área
+  useEffect(() => {
+    sincronizarReservas();
+  }, [sincronizarReservas, modoAdmin, area, fecha]);
+
+  useFocusEffect(
+    useCallback(() => {
+      sincronizarReservas();
+    }, [sincronizarReservas])
+  );
+
+  const obtenerReservaOcupada = (b: BloqueHorario): Reserva | undefined => {
+    return reservasGuardadas.find(
       (r) => r.areaComun === area && r.fecha === fecha && r.bloqueHorario === b && r.estado === 'Confirmada'
     );
+  };
+
+  const estaOcupadoPorOtro = (b: BloqueHorario): boolean => {
+    return Boolean(obtenerReservaOcupada(b));
   };
 
   const onDayPress = (day: DateData) => {
@@ -121,24 +163,85 @@ export default function PantallaReservas() {
   };
 
   const confirmarReserva = async () => {
-    if ((!modoAdmin && !veredictoMora.permitido) || !bloqueSeleccionado) return;
+    if ((!esAdmin && !veredictoMora.permitido) || !bloqueSeleccionado || guardando) return;
     setGuardando(true);
     setErrorGuardar('');
+
     try {
+      // 1. Verificación de concurrencia en tiempo real contra Supabase
+      // Si dos clientes están con la app abierta a la vez, el primer cliente que confirme se la queda
+      try {
+        const { data: ocupadasRemotas } = await supabase
+          .from('reservas')
+          .select('*')
+          .eq('area_comun', area)
+          .eq('fecha', fecha)
+          .eq('bloque_horario', bloqueSeleccionado)
+          .eq('estado', 'Confirmada');
+
+        if (ocupadasRemotas && ocupadasRemotas.length > 0) {
+          Alert.alert(
+            'Horario ya reservado',
+            `¡Lo sentimos! El horario ${bloqueSeleccionado} para ${area} acaba de ser reservado por ${ocupadasRemotas[0].apartamento}. Por favor elige otra franja disponible.`
+          );
+          setBloqueSeleccionado(null);
+          await sincronizarReservas();
+          setGuardando(false);
+          return;
+        }
+      } catch (eConcurrencia) {
+        console.warn('Verificación remota omitida (offline):', eConcurrencia);
+      }
+
+      // 2. Verificar concurrencia en la base local
+      const yaOcupadaLocal = reservasGuardadas.find(
+        (r) => r.areaComun === area && r.fecha === fecha && r.bloqueHorario === bloqueSeleccionado && r.estado === 'Confirmada'
+      );
+      if (yaOcupadaLocal) {
+        Alert.alert(
+          'Horario no disponible',
+          `Esta franja ya se encuentra ocupada por ${yaOcupadaLocal.apartamento}.`
+        );
+        setBloqueSeleccionado(null);
+        setGuardando(false);
+        return;
+      }
+
+      const aptoActual = esAdmin
+        ? 'Administración'
+        : (usuarioActual?.apartamento || 'Torre B - Apto 302');
+
       const nueva: Reserva = {
         id: `res-${Date.now()}`,
-        apartamento: modoAdmin ? 'Administración' : 'Torre B - Apto 302',
+        apartamento: aptoActual,
         areaComun: area,
         fecha,
         bloqueHorario: bloqueSeleccionado,
         estado: 'Confirmada',
         createdAt: new Date().toISOString(),
       };
+
+      // 3. Registrar en Supabase para sincronización entre dispositivos
+      try {
+        await supabase.from('reservas').insert({
+          id: nueva.id,
+          apartamento: nueva.apartamento,
+          area_comun: nueva.areaComun,
+          fecha: nueva.fecha,
+          bloque_horario: nueva.bloqueHorario,
+          estado: 'Confirmada',
+        });
+      } catch (errSupabase) {
+        console.warn('Error guardando en Supabase:', errSupabase);
+      }
+
+      // 4. Guardar en SQLite local
       guardarReservaLocal(nueva);
       const actualizadas = leerReservasLocales();
       setReservasGuardadas(actualizadas);
       setReservaReciente(nueva);
       setBloqueSeleccionado(null);
+
       // Oculta el banner de éxito después de 4 segundos
       setTimeout(() => setReservaReciente(null), 4000);
     } catch (e: any) {
@@ -205,7 +308,7 @@ export default function PantallaReservas() {
         )}
 
         {/* Banner para Modo Administrador */}
-        {modoAdmin && (
+        {esAdmin && (
           <View style={estilos.bannerAdmin}>
             <Ionicons name="shield-checkmark" size={20} color="#0F2540" style={{ marginRight: 10 }} />
             <Text style={estilos.bannerAdminTexto}>
@@ -215,7 +318,7 @@ export default function PantallaReservas() {
         )}
 
         {/* Banner mora / al día SOLO PARA EL RESIDENTE */}
-        {!modoAdmin && !veredictoMora.permitido && (
+        {!esAdmin && !veredictoMora.permitido && (
           <View style={estilos.bannerMora}>
             <Ionicons name="alert-circle" size={22} color="#991B1B" style={{ marginRight: 12 }} />
             <View style={{ flex: 1 }}>
@@ -225,7 +328,7 @@ export default function PantallaReservas() {
           </View>
         )}
 
-        {!modoAdmin && veredictoMora.permitido && !reservaReciente && (
+        {!esAdmin && veredictoMora.permitido && !reservaReciente && (
           <View style={estilos.bannerAlDia}>
             <Ionicons name="checkmark-circle" size={20} color="#166534" style={{ marginRight: 10 }} />
             <Text style={estilos.bannerAlDiaTexto}>
@@ -240,7 +343,7 @@ export default function PantallaReservas() {
             <View style={estilos.filaSeccion}>
               <Ionicons name="list" size={18} color="#0F2540" style={{ marginRight: 8 }} />
               <Text style={estilos.tituloSeccion}>
-                {modoAdmin ? 'Reservas registradas' : 'Mis reservas'}
+                {esAdmin ? 'Reservas registradas' : 'Mis reservas'}
               </Text>
               <View style={estilos.badgeContador}>
                 <Text style={estilos.badgeContadorTexto}>{reservasGuardadas.length}</Text>
@@ -368,13 +471,16 @@ export default function PantallaReservas() {
             </View>
 
             {BLOQUES_OFICIALES.map((bloque) => {
-              const ocupado = estaOcupadoPorOtro(bloque);
+              const reservaOcupada = obtenerReservaOcupada(bloque);
+              const ocupado = Boolean(reservaOcupada);
               const seleccionado = bloqueSeleccionado === bloque;
-              const deshabilitado = ocupado || (!modoAdmin && !veredictoMora.permitido);
+              const deshabilitado = ocupado || (!esAdmin && !veredictoMora.permitido);
 
               let bg = '#F8FAFC', borde = '#CBD5E1', textoColor = '#64748B', etiqueta = 'DISPONIBLE', iconoNombre = 'time-outline';
               if (ocupado) {
-                bg = '#FEE2E2'; borde = '#FCA5A5'; textoColor = '#991B1B'; etiqueta = 'OCUPADO'; iconoNombre = 'lock-closed';
+                bg = '#FEE2E2'; borde = '#FCA5A5'; textoColor = '#991B1B';
+                etiqueta = reservaOcupada?.apartamento ? `OCUPADO · ${reservaOcupada.apartamento}` : 'OCUPADO';
+                iconoNombre = 'lock-closed';
               } else if (seleccionado) {
                 bg = '#0F2540'; borde = '#0F2540'; textoColor = '#FFFFFF'; etiqueta = 'SELECCIONADO'; iconoNombre = 'checkmark-circle';
               }
@@ -400,11 +506,11 @@ export default function PantallaReservas() {
             })}
 
             <Pressable
-              disabled={(!modoAdmin && !veredictoMora.permitido) || !bloqueSeleccionado || guardando}
+              disabled={(!esAdmin && !veredictoMora.permitido) || !bloqueSeleccionado || guardando}
               onPress={confirmarReserva}
               style={[
                 estilos.btnConfirmar,
-                ((!modoAdmin && !veredictoMora.permitido) || !bloqueSeleccionado || guardando) && estilos.btnConfirmarDeshabilitado,
+                ((!esAdmin && !veredictoMora.permitido) || !bloqueSeleccionado || guardando) && estilos.btnConfirmarDeshabilitado,
               ]}
               accessibilityRole="button"
             >

@@ -10,6 +10,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -297,6 +298,35 @@ export default function PantallaPerfil() {
             </View>
           </View>
 
+          {/* Ayuda: Si olvidó su PIN actual */}
+          <Pressable
+            onPress={() => {
+              Alert.alert(
+                '¿Olvidaste tu PIN actual?',
+                'Si no recuerdas tu PIN actual, debes comunicarte con la administración general para que restablezcan tu clave de acceso:\n\n' +
+                '👤 Administrador: Carlos Mendoza\n' +
+                '🏢 Oficina: Portería / Administración\n' +
+                '📞 Teléfono: 315 789 2341\n' +
+                '✉️ Correo: admin@doorway.com',
+                [
+                  {
+                    text: 'Llamar a Administración',
+                    onPress: () => Linking.openURL('tel:3157892341'),
+                  },
+                  { text: 'Entendido', style: 'cancel' },
+                ]
+              );
+            }}
+            style={estilos.btnOlvidoPinPerfil}
+            accessibilityRole="button"
+            accessibilityLabel="¿Olvidaste tu PIN actual? Comunícate con el Administrador"
+          >
+            <Ionicons name="help-circle-outline" size={16} color="#64748B" style={{ marginRight: 6 }} />
+            <Text style={estilos.textoOlvidoPinPerfil}>
+              ¿No recuerdas tu PIN actual? <Text style={estilos.textoOlvidoPinPerfilDestacado}>Pídelo al Admin</Text>
+            </Text>
+          </Pressable>
+
           {mensajePin && (
             <View style={mensajePin.tipo === 'ok' ? estilos.cajaExito : estilos.cajaError}>
               <Ionicons
@@ -539,5 +569,23 @@ const estilos = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     fontFamily: 'Inter_800ExtraBold',
+  },
+  btnOlvidoPinPerfil: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+    marginBottom: 4,
+    paddingVertical: 6,
+  },
+  textoOlvidoPinPerfil: {
+    fontSize: 12,
+    color: '#64748B',
+    fontFamily: 'Inter_500Medium',
+  },
+  textoOlvidoPinPerfilDestacado: {
+    color: '#0F2540',
+    fontWeight: '700',
+    fontFamily: 'Inter_700Bold',
   },
 });

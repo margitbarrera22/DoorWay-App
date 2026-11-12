@@ -12,6 +12,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -211,6 +212,35 @@ export default function LoginScreen() {
               ) : (
                 <Text style={estilos.btnLoginTexto}>Ingresar</Text>
               )}
+            </Pressable>
+
+            {/* ¿Olvidaste tu PIN? Solicítalo al administrador */}
+            <Pressable
+              onPress={() => {
+                Alert.alert(
+                  '¿Olvidaste tu PIN de acceso?',
+                  'Por seguridad de la copropiedad, para restablecer o solicitar tu PIN debes comunicarte con el administrador:\n\n' +
+                  '👤 Administrador: Carlos Mendoza\n' +
+                  '🏢 Oficina: Portería / Administración\n' +
+                  '📞 Teléfono: 315 789 2341\n' +
+                  '✉️ Correo: admin@doorway.com',
+                  [
+                    {
+                      text: 'Llamar al Administrador',
+                      onPress: () => Linking.openURL('tel:3157892341'),
+                    },
+                    { text: 'Entendido', style: 'cancel' },
+                  ]
+                );
+              }}
+              style={estilos.btnOlvidoPin}
+              accessibilityRole="button"
+              accessibilityLabel="¿Olvidaste tu PIN? Solicítalo al Administrador"
+            >
+              <Ionicons name="key-outline" size={15} color="#64748B" style={{ marginRight: 6 }} />
+              <Text style={estilos.textoOlvidoPin}>
+                ¿Olvidaste tu PIN? <Text style={estilos.textoOlvidoPinDestacado}>Pídelo al Administrador</Text>
+              </Text>
             </Pressable>
 
             {errorAuth ? (
@@ -528,6 +558,23 @@ const estilos = StyleSheet.create({
     marginTop: 18,
     alignItems: 'center',
     paddingVertical: 8,
+  },
+  btnOlvidoPin: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 14,
+    paddingVertical: 6,
+  },
+  textoOlvidoPin: {
+    fontSize: 13,
+    color: '#64748B',
+    fontFamily: 'Inter_500Medium',
+  },
+  textoOlvidoPinDestacado: {
+    color: '#0F2540',
+    fontWeight: '700',
+    fontFamily: 'Inter_700Bold',
   },
   textoEnlace: {
     fontSize: 13,

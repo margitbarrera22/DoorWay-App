@@ -22,6 +22,36 @@ export function evaluarDerechoAReservar(recibos: Recibo[]): VeredictoPermisoRese
     return { permitido: true, cantidadEnMora: 0, montoTotalMora: 0 };
 }
 
+/**
+ * Filtra los recibos para vincular única y exclusivamente los correspondientes
+ * al usuario en sesión activa, evitando mezclar estados de cuenta entre clientes.
+ */
+export function filtrarRecibosPorUsuario(
+    recibos: Recibo[],
+    usuario: { nombre?: string; apartamento?: string; rol?: string } | null
+): Recibo[] {
+    if (!usuario) return [];
+    if (usuario.rol === 'admin') return recibos;
+
+    const apto = (usuario.apartamento || '').toLowerCase().trim();
+    const nombre = (usuario.nombre || '').toLowerCase().trim();
+    const digitosApto = apto.replace(/\D/g, '');
+
+    const propios = recibos.filter((r) => {
+        const rApto = (r.apartamento || '').toLowerCase().trim();
+        const rNom = (r.residenteNombre || '').toLowerCase().trim();
+        const rDigitos = rApto.replace(/\D/g, '');
+
+        if (nombre && (rNom === nombre || rNom.includes(nombre) || nombre.includes(rNom))) return true;
+        if (apto && (rApto === apto || rApto.includes(apto) || apto.includes(rApto))) return true;
+        if (digitosApto && rDigitos && digitosApto === rDigitos) return true;
+
+        return false;
+    });
+
+    return propios;
+}
+
 export function puedeCancelarCon24h(fechaReserva: string, bloque: BloqueHorario, ahora: Date = new Date()): {
     puedeCancelar: boolean;
     mensaje: string;
