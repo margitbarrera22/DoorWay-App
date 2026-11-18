@@ -109,6 +109,8 @@ export function inicializarBaseLocal(): void {
       dbSync.execSync(`
         DELETE FROM recibos_local WHERE id IN ('rec-02', 'rec-03', 'rec-04', 'rec-05');
         DELETE FROM recibos_cache WHERE id IN ('rec-02', 'rec-03', 'rec-04', 'rec-05');
+        UPDATE recibos_local SET estado = 'En mora', referenciaBancaria = NULL WHERE estado = 'Pagado' AND (comprobanteUrl IS NULL OR comprobanteUrl = '') AND referenciaBancaria LIKE 'REF-%';
+        UPDATE recibos_cache SET estado = 'En mora', referenciaBancaria = NULL WHERE estado = 'Pagado' AND (comprobanteUrl IS NULL OR comprobanteUrl = '') AND referenciaBancaria LIKE 'REF-%';
       `);
     } catch {}
   } catch (error) {
@@ -211,6 +213,12 @@ export class DbLocalSqliteRepository implements IRecibosRepository {
   }
 
   async subirComprobante(idRecibo: string, referencia: string, uriFotoLocal: string): Promise<Recibo> {
+    if (!uriFotoLocal || !uriFotoLocal.trim()) {
+      throw new Error('El comprobante de pago es obligatorio para enviar el recibo.');
+    }
+    if (!referencia || referencia.trim().length < 4) {
+      throw new Error('Ingresa el número o código de referencia bancaria (mínimo 4 caracteres).');
+    }
     if (!this.db) await this.inicializarBaseDatos();
     if (!this.db) {
       throw new Error('No se pudo conectar con la base de datos SQLite local');
@@ -229,11 +237,14 @@ export class DbLocalSqliteRepository implements IRecibosRepository {
 
     let actualizado = await this.obtenerPorId(idRecibo);
     if (!actualizado) {
+      const sesion = await this.leerSesionDeSqlite();
+      const aptoRecibo = sesion?.apartamento || 'Torre B - Apto 302';
+      const nombreRecibo = sesion?.nombre || 'Doña Martha Gómez';
       // Si el recibo no existía en la base local, lo creamos con el comprobante adjunto
       await this.db.runAsync(
         `INSERT INTO recibos_local (id, apartamento, residenteNombre, periodo, monto, fechaVencimiento, estado, referenciaBancaria, comprobanteUrl, observacionAdmin)
-         VALUES (?, 'Torre B - Apto 302', 'Doña Martha Gómez', 'Noviembre 2026', 185000, '2026-11-30', 'En validación', ?, ?, NULL);`,
-        [idRecibo, referencia, uriFotoLocal]
+         VALUES (?, ?, ?, 'Noviembre 2026', 185000, '2026-11-30', 'En validación', ?, ?, NULL);`,
+        [idRecibo, aptoRecibo, nombreRecibo, referencia, uriFotoLocal]
       );
       actualizado = await this.obtenerPorId(idRecibo);
     }
@@ -336,11 +347,22 @@ export class DbLocalSqliteRepository implements IRecibosRepository {
   async sincronizarDesdeSupabase(recibos: Recibo[]): Promise<void> {
     if (!this.db) await this.inicializarBaseDatos();
     if (!this.db) return;
-    for (const r of recibos) {
+    for (const rOrig of recibos) {
       const local = await this.db.getFirstAsync<Recibo>(
         'SELECT * FROM recibos_local WHERE id = ?;',
-        [r.id]
+        [rOrig.id]
       );
+
+      // Si es un recibo de registro automático que quedó en Supabase como Pagado sin comprobante, normalizar a En mora
+      const esAutoPagadoSinSoporte =
+        rOrig.estado === 'Pagado' &&
+        !rOrig.comprobanteUrl &&
+        !local?.comprobanteUrl &&
+        Boolean(rOrig.referenciaBancaria && rOrig.referenciaBancaria.startsWith('REF-'));
+
+      const r: Recibo = esAutoPagadoSinSoporte
+        ? { ...rOrig, estado: 'En mora', referenciaBancaria: null }
+        : rOrig;
 
       if (!local) {
         await this.db.runAsync(

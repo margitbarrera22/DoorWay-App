@@ -107,7 +107,13 @@ export class RepositorioRecibosHibrido implements IRecibosRepository {
   }
 
   async subirComprobante(idRecibo: string, referencia: string, uriFotoLocal: string): Promise<Recibo> {
+    if (!uriFotoLocal || !uriFotoLocal.trim()) {
+      throw new Error('El comprobante de pago es obligatorio para enviar el recibo.');
+    }
     const refLimpia = referencia.trim();
+    if (!refLimpia || refLimpia.length < 4) {
+      throw new Error('Ingresa el número o código de referencia bancaria (mínimo 4 caracteres).');
+    }
 
     // 1. Intentar subir imagen al storage de Supabase si hay red
     let urlRemota: string | null = null;

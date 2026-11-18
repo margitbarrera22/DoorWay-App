@@ -160,8 +160,8 @@ export default function PantallaCartera() {
         periodo: 'Noviembre 2026',
         monto: 185000,
         fechaVencimiento: '2026-11-30',
-        estado: 'Pagado',
-        referenciaBancaria: 'REF-REG-001',
+        estado: 'En mora',
+        referenciaBancaria: null,
         comprobanteUrl: null,
         observacionAdmin: null,
       };

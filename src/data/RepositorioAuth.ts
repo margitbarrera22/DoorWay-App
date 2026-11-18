@@ -286,7 +286,7 @@ export class RepositorioAuthHibrido implements IAuthRepository {
       avatarUrl: null,
     });
 
-    // 3. Crear su primer recibo oficial en la cartera
+    // 3. Crear su primer recibo oficial en la cartera (por pagar / En mora hasta que suba comprobante)
     const idReciboNuevo = `rec-${idFinal.replace(/\D/g, '') || Date.now()}`;
     const nuevoRecibo: Recibo = {
       id: idReciboNuevo,
@@ -295,8 +295,8 @@ export class RepositorioAuthHibrido implements IAuthRepository {
       periodo: 'Noviembre 2026',
       monto: 185000,
       fechaVencimiento: '2026-11-30',
-      estado: 'Pagado',
-      referenciaBancaria: `REF-${Math.floor(100000 + Math.random() * 900000)}`,
+      estado: 'En mora',
+      referenciaBancaria: null,
       comprobanteUrl: null,
       observacionAdmin: null,
     };
@@ -317,8 +317,9 @@ export class RepositorioAuthHibrido implements IAuthRepository {
           periodo: 'Noviembre 2026',
           monto: 185000,
           fecha_vencimiento: '2026-11-30',
-          estado: 'Pagado',
-          referencia_bancaria: nuevoRecibo.referenciaBancaria,
+          estado: 'En mora',
+          referencia_bancaria: null,
+          comprobante_url: null,
         },
       ]);
     } catch {}

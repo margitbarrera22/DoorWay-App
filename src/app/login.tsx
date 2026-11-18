@@ -94,7 +94,7 @@ export default function LoginScreen() {
     setCargando(false);
 
     if (ok) {
-      recargarRecibos().catch(() => {});
+      await recargarRecibos().catch(() => {});
       Alert.alert('¡Registro exitoso!', 'Bienvenido a DoorWay. Tu cuenta ha sido creada.', [
         { text: 'Continuar', onPress: () => router.replace('/inicio') },
       ]);

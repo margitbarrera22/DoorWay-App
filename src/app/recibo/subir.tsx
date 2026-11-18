@@ -85,11 +85,15 @@ export default function SubirComprobante() {
   const handleEnviar = async () => {
     if (guardando) return;
     if (!referencia || referencia.trim().length < 4) {
-      setErrorValidacion('Ingresa el número o código de referencia bancaria (mínimo 4 caracteres).');
+      const msgRef = 'Ingresa el número o código de referencia bancaria (mínimo 4 caracteres).';
+      setErrorValidacion(msgRef);
+      Alert.alert('Referencia obligatoria', msgRef);
       return;
     }
-    if (!foto) {
-      setErrorValidacion('Falta adjuntar la fotografía del comprobante de pago.');
+    if (!foto || !foto.trim()) {
+      const msgFoto = 'El comprobante de pago es obligatorio. Debes adjuntar la fotografía o captura del soporte antes de enviar el recibo.';
+      setErrorValidacion(msgFoto);
+      Alert.alert('Comprobante obligatorio', msgFoto);
       return;
     }
 
@@ -151,6 +155,7 @@ export default function SubirComprobante() {
           autoCapitalize="characters"
         />
 
+        <Text style={estilos.label}>Fotografía del comprobante de pago (Obligatorio *)</Text>
         <View style={estilos.filaBotonesFoto}>
           <Pressable
             onPress={tomarFoto}
@@ -183,8 +188,8 @@ export default function SubirComprobante() {
         ) : (
           <View style={estilos.cajaPreview}>
             <Ionicons name="image-outline" size={38} color="#94A3B8" style={{ marginBottom: 10, opacity: 0.6 }} />
-            <Text style={estilos.textoPreview}>Sin fotografía adjunta</Text>
-            <Text style={estilos.textoPreviewSub}>Toma una foto del voucher o el soporte digital</Text>
+            <Text style={estilos.textoPreview}>Sin fotografía adjunta (Obligatorio)</Text>
+            <Text style={estilos.textoPreviewSub}>Debes adjuntar una foto del voucher o soporte digital para poder enviar</Text>
           </View>
         )}
 
@@ -196,11 +201,11 @@ export default function SubirComprobante() {
         )}
 
         <Text style={estilos.footerText}>
-          Al enviar, el recibo cambiará inmediatamente a estado "En validación" en el sistema.
+          Al enviar con su respectivo comprobante, el recibo cambiará a estado "En validación" en el sistema.
         </Text>
 
         <Pressable
-          style={[estilos.btnEnviar, guardando && { opacity: 0.7 }]}
+          style={[estilos.btnEnviar, (guardando || !foto || !foto.trim()) && { opacity: 0.6 }]}
           onPress={handleEnviar}
           disabled={guardando}
           accessibilityRole="button"
