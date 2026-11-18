@@ -25,14 +25,11 @@ export default function PantallaPerfil() {
   const insets = useSafeAreaInsets();
   const { usuarioActual, actualizarPin, actualizarAvatar, cerrarSesion } = useAuth();
 
-  // Estados para cambio de PIN
   const [pinActual, setPinActual] = useState('');
   const [nuevoPin, setNuevoPin] = useState('');
   const [confirmarPin, setConfirmarPin] = useState('');
   const [guardandoPin, setGuardandoPin] = useState(false);
   const [mensajePin, setMensajePin] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null);
-
-  // Estados para foto
   const [cargandoFoto, setCargandoFoto] = useState(false);
 
   const [fontsLoaded] = useFonts({
@@ -138,7 +135,7 @@ export default function PantallaPerfil() {
   };
 
   if (!fontsLoaded) {
-    return <ActivityIndicator size="large" color="#0F2540" style={{ flex: 1, justifyContent: 'center' }} />;
+    return null;
   }
 
   const esAdmin = usuarioActual?.rol === 'admin';
@@ -165,7 +162,7 @@ export default function PantallaPerfil() {
       <ScrollView
         contentContainerStyle={[
           estilos.scrollContent,
-          { paddingBottom: Math.max(insets.bottom, 20) + 40 },
+          { paddingBottom: Math.max(insets.bottom, 20) + 90 },
         ]}
         keyboardShouldPersistTaps="handled"
       >
@@ -298,7 +295,6 @@ export default function PantallaPerfil() {
             </View>
           </View>
 
-          {/* Ayuda: Si olvidó su PIN actual */}
           <Pressable
             onPress={() => {
               Alert.alert(
@@ -319,7 +315,7 @@ export default function PantallaPerfil() {
             }}
             style={estilos.btnOlvidoPinPerfil}
             accessibilityRole="button"
-            accessibilityLabel="¿Olvidaste tu PIN actual? Comunícate con el Administrador"
+            accessibilityLabel="¿Olvidaste tu PIN actual?"
           >
             <Ionicons name="help-circle-outline" size={16} color="#64748B" style={{ marginRight: 6 }} />
             <Text style={estilos.textoOlvidoPinPerfil}>
@@ -364,7 +360,7 @@ export default function PantallaPerfil() {
           accessibilityLabel="Cerrar sesión actual"
         >
           <Ionicons name="log-out-outline" size={20} color="#DC2626" style={{ marginRight: 8 }} />
-          <Text style={estilos.btnCerrarSesionTexto}>Cerrar Sesión Activa</Text>
+          <Text style={estilos.btnCerrarSesionTexto}>Cerrar Sesión</Text>
         </Pressable>
       </ScrollView>
 

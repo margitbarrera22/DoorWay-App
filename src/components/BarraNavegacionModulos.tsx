@@ -12,27 +12,32 @@ export function BarraNavegacionModulos() {
 
   const pestañas = [
     { titulo: 'Inicio', icono: 'home', ruta: '/inicio' },
-    { titulo: 'Cartera', icono: 'wallet', ruta: '/' },
+    { titulo: 'Cartera', icono: 'wallet', ruta: '/cartera' },
     { titulo: 'Reservas', icono: 'calendar', ruta: '/reservas' },
     { titulo: 'Avisos', icono: 'notifications', ruta: '/comunidad' },
+    { titulo: 'Perfil', icono: 'person-circle', ruta: '/perfil' },
   ];
 
   return (
-    <View style={[estilos.contenedor, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+    <View style={[estilos.contenedor, { paddingBottom: Math.max(insets.bottom, 18) + 6 }]}>
       {pestañas.map((p) => {
-        const activa = rutaActual === p.ruta;
+        const activa = rutaActual === p.ruta || (p.ruta === '/inicio' && rutaActual === '/');
         const iconoNombre = activa ? p.icono : `${p.icono}-outline`;
         return (
           <Pressable
             key={p.titulo}
-            onPress={() => router.push(p.ruta as any)}
+            onPress={() => {
+              if (rutaActual !== p.ruta) {
+                router.navigate(p.ruta as any);
+              }
+            }}
             accessibilityRole="tab"
             accessibilityLabel={`Ir a ${p.titulo}`}
             style={estilos.tab}
           >
             <Ionicons
               name={iconoNombre as any}
-              size={24}
+              size={22}
               color={activa ? '#0F2540' : '#94A3B8'}
             />
             <Text style={[estilos.texto, activa && estilos.textoActivo]}>{p.titulo}</Text>
@@ -49,21 +54,25 @@ const estilos = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
-    paddingBottom: 8,
-    paddingTop: 8,
+    paddingTop: 6,
+    elevation: 10,
+    shadowColor: '#0F2540',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    minHeight: 56,
+    paddingVertical: 4,
+    minHeight: 50,
   },
   texto: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
     color: '#94A3B8',
-    marginTop: 4,
+    marginTop: 2,
     fontFamily: 'Inter_600SemiBold',
   },
   textoActivo: {

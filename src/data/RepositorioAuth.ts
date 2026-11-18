@@ -1,12 +1,13 @@
 // src/data/RepositorioAuth.ts — Autora: Michel Daniela Bayona Díaz & Wilfran Betancourt
 import { supabase } from './RepositorioRecibos';
 import { IAuthRepository } from './contratos';
-import { UsuarioSesion, RolUsuario } from '../domain/modelos';
+import { UsuarioSesion, RolUsuario, Recibo } from '../domain/modelos';
 import {
   DbLocalSqliteRepository,
   guardarSesionEnSqlite,
   leerSesionDeSqlite,
   borrarSesionDeSqlite,
+  insertarReciboEnCache,
 } from './dbLocalSqlite';
 
 const dbLocal = new DbLocalSqliteRepository();
@@ -285,7 +286,44 @@ export class RepositorioAuthHibrido implements IAuthRepository {
       avatarUrl: null,
     });
 
-    // 3. Crear sesión activa en SQLite
+    // 3. Crear su primer recibo oficial en la cartera
+    const idReciboNuevo = `rec-${idFinal.replace(/\D/g, '') || Date.now()}`;
+    const nuevoRecibo: Recibo = {
+      id: idReciboNuevo,
+      apartamento,
+      residenteNombre: nombre,
+      periodo: 'Noviembre 2026',
+      monto: 185000,
+      fechaVencimiento: '2026-11-30',
+      estado: 'Pagado',
+      referenciaBancaria: `REF-${Math.floor(100000 + Math.random() * 900000)}`,
+      comprobanteUrl: null,
+      observacionAdmin: null,
+    };
+
+    try {
+      await dbLocal.insertarRecibo(nuevoRecibo);
+      insertarReciboEnCache(nuevoRecibo);
+    } catch (err) {
+      console.warn('Error al insertar recibo inicial local:', err);
+    }
+
+    try {
+      await supabase.from('recibos').insert([
+        {
+          id: idReciboNuevo,
+          apartamento,
+          residente_nombre: nombre,
+          periodo: 'Noviembre 2026',
+          monto: 185000,
+          fecha_vencimiento: '2026-11-30',
+          estado: 'Pagado',
+          referencia_bancaria: nuevoRecibo.referenciaBancaria,
+        },
+      ]);
+    } catch {}
+
+    // 4. Crear sesión activa en SQLite
     const nuevaSesion: UsuarioSesion = {
       id: idFinal,
       nombre,

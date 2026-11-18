@@ -103,6 +103,14 @@ export function inicializarBaseLocal(): void {
         [c.id, c.entidad, c.telefono, c.descripcion, c.disponible24h ? 1 : 0]
       );
     }
+
+    // Limpieza de ejemplos antiguos para dejar únicamente el flujo de pago desde cero solicitado
+    try {
+      dbSync.execSync(`
+        DELETE FROM recibos_local WHERE id IN ('rec-02', 'rec-03', 'rec-04', 'rec-05');
+        DELETE FROM recibos_cache WHERE id IN ('rec-02', 'rec-03', 'rec-04', 'rec-05');
+      `);
+    } catch {}
   } catch (error) {
     console.warn('Error al inicializar tablas locales en SQLite:', error);
   }
@@ -219,7 +227,16 @@ export class DbLocalSqliteRepository implements IRecibosRepository {
       [referencia, uriFotoLocal, idRecibo]
     );
 
-    const actualizado = await this.obtenerPorId(idRecibo);
+    let actualizado = await this.obtenerPorId(idRecibo);
+    if (!actualizado) {
+      // Si el recibo no existía en la base local, lo creamos con el comprobante adjunto
+      await this.db.runAsync(
+        `INSERT INTO recibos_local (id, apartamento, residenteNombre, periodo, monto, fechaVencimiento, estado, referenciaBancaria, comprobanteUrl, observacionAdmin)
+         VALUES (?, 'Torre B - Apto 302', 'Doña Martha Gómez', 'Noviembre 2026', 185000, '2026-11-30', 'En validación', ?, ?, NULL);`,
+        [idRecibo, referencia, uriFotoLocal]
+      );
+      actualizado = await this.obtenerPorId(idRecibo);
+    }
     if (!actualizado) throw new Error(`No se encontró el recibo con ID ${idRecibo}`);
     return actualizado;
   }
@@ -244,10 +261,57 @@ export class DbLocalSqliteRepository implements IRecibosRepository {
     return actualizado;
   }
 
+  async insertarRecibo(r: Recibo): Promise<void> {
+    if (!this.db) await this.inicializarBaseDatos();
+    if (!this.db) return;
+    await this.db.runAsync(
+      `INSERT OR REPLACE INTO recibos_local (id, apartamento, residenteNombre, periodo, monto, fechaVencimiento, estado, referenciaBancaria, comprobanteUrl, observacionAdmin)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      [
+        r.id,
+        r.apartamento,
+        r.residenteNombre,
+        r.periodo,
+        r.monto,
+        r.fechaVencimiento,
+        r.estado,
+        r.referenciaBancaria || null,
+        r.comprobanteUrl || null,
+        r.observacionAdmin || null,
+      ]
+    );
+  }
+
   async insertarSemilla(recibos: Recibo[]): Promise<void> {
     if (!this.db) await this.inicializarBaseDatos();
     if (!this.db) return;
+    try {
+      await this.db.runAsync("DELETE FROM recibos_local WHERE id IN ('rec-02', 'rec-03', 'rec-04', 'rec-05');");
+    } catch {}
     for (const r of recibos) {
+      // Si rec-01 existía con período viejo, actualizar a Noviembre 2026
+      if (r.id === 'rec-01') {
+        const existe = await this.db.getFirstAsync<Recibo>('SELECT * FROM recibos_local WHERE id = "rec-01";');
+        if (!existe || existe.periodo !== 'Noviembre 2026') {
+          await this.db.runAsync(
+            `INSERT OR REPLACE INTO recibos_local (id, apartamento, residenteNombre, periodo, monto, fechaVencimiento, estado, referenciaBancaria, comprobanteUrl, observacionAdmin)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+            [
+              r.id,
+              r.apartamento,
+              r.residenteNombre,
+              r.periodo,
+              r.monto,
+              r.fechaVencimiento,
+              r.estado,
+              r.referenciaBancaria || null,
+              r.comprobanteUrl || null,
+              r.observacionAdmin || null,
+            ]
+          );
+          continue;
+        }
+      }
       // INSERT OR IGNORE: nunca sobreescribe registros existentes.
       // Preserva comprobanteUrl, referenciaBancaria y estado que el residente ya guardó.
       await this.db.runAsync(
@@ -604,4 +668,37 @@ export function leerDirectorioDeSqlite(): ContactoEmergencia[] {
     }));
   }
   return SEMILLAS_EMERGENCIAS_BARRANCABERMEJA;
+}
+
+export function leerTodosLosUsuariosRegistrados(): Array<{ id: string; nombre: string; correo: string; apartamento: string }> {
+  inicializarBaseLocal();
+  try {
+    return dbSync.getAllSync<{ id: string; nombre: string; correo: string; apartamento: string }>(
+      'SELECT id, nombre, correo, apartamento FROM usuarios_registrados WHERE rol = "residente";'
+    );
+  } catch {
+    return [];
+  }
+}
+
+export function insertarReciboEnCache(r: Recibo): void {
+  inicializarBaseLocal();
+  try {
+    dbSync.runSync(
+      `INSERT OR REPLACE INTO recibos_cache (id, apartamento, residenteNombre, periodo, monto, fechaVencimiento, estado, referenciaBancaria, comprobanteUrl, observacionAdmin)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      [
+        r.id,
+        r.apartamento,
+        r.residenteNombre,
+        r.periodo,
+        r.monto,
+        r.fechaVencimiento,
+        r.estado,
+        r.referenciaBancaria || null,
+        r.comprobanteUrl || null,
+        r.observacionAdmin || null,
+      ]
+    );
+  } catch {}
 }

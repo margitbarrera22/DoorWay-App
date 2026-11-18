@@ -35,7 +35,7 @@ export function useLoginFormulario() {
       setErrorMensaje(null);
       const exito = await iniciarSesion(correoNormalizado, clave);
       if (exito) {
-        router.replace('/');
+        router.replace('/inicio');
       } else {
         setErrorMensaje('Credenciales inválidas. Verifica tu correo y PIN (Ej: martha@doorway.com / 3020).');
       }

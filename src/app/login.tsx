@@ -19,11 +19,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFonts, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold, Inter_900Black } from '@expo-google-fonts/inter';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../hooks/AuthContext';
+import { useRecibos } from '../hooks/RecibosContext';
 
 export default function LoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { iniciarSesion, registrarResidente, errorAuth, limpiarErrorAuth } = useAuth();
+  const { cargar: recargarRecibos } = useRecibos();
 
   // Modo: 'login' o 'registro' (exclusivo para residentes)
   const [modo, setModo] = useState<'login' | 'registro'>('login');
@@ -59,7 +61,7 @@ export default function LoginScreen() {
     const ok = await iniciarSesion(correo, pin);
     setCargando(false);
     if (ok) {
-      router.replace('/');
+      router.replace('/inicio');
     }
   };
 
@@ -92,8 +94,9 @@ export default function LoginScreen() {
     setCargando(false);
 
     if (ok) {
+      recargarRecibos().catch(() => {});
       Alert.alert('¡Registro exitoso!', 'Bienvenido a DoorWay. Tu cuenta ha sido creada.', [
-        { text: 'Continuar', onPress: () => router.replace('/') },
+        { text: 'Continuar', onPress: () => router.replace('/inicio') },
       ]);
     }
   };
@@ -123,7 +126,7 @@ export default function LoginScreen() {
         <View style={estilos.header}>
           <View style={estilos.logoContainer}>
             <Image
-              source={require('../../assets/icon.png')}
+              source={require('../../assets/adaptive-icon.png')}
               style={estilos.logoImagen}
               resizeMode="contain"
             />
@@ -585,6 +588,61 @@ const estilos = StyleSheet.create({
     color: '#0F2540',
     fontWeight: '800',
     fontFamily: 'Inter_800ExtraBold',
+  },
+
+  // Estilos de los accesos rápidos de prueba
+  seccionAccesosDemo: {
+    marginTop: 18,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    alignItems: 'center',
+  },
+  tituloDemo: {
+    fontSize: 12,
+    color: '#64748B',
+    marginBottom: 8,
+    fontFamily: 'Inter_500Medium',
+  },
+  filaBotonesDemo: {
+    flexDirection: 'row',
+    gap: 8,
+    width: '100%',
+  },
+  btnDemoAdmin: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0F2540',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    elevation: 2,
+  },
+  btnDemoAdminTexto: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '700',
+    fontFamily: 'Inter_700Bold',
+  },
+  btnDemoResidente: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+  },
+  btnDemoResidenteTexto: {
+    color: '#0F2540',
+    fontSize: 12,
+    fontWeight: '700',
+    fontFamily: 'Inter_700Bold',
   },
 
   footer: {

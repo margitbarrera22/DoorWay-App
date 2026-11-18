@@ -23,9 +23,9 @@ export function TarjetaRecibo({ recibo, alTocar }: Props) {
       style={estilos.card}
     >
       <View style={estilos.filaSuperior}>
-        <Text style={estilos.periodo}>{recibo.periodo}</Text>
+        <Text style={estilos.periodo} numberOfLines={1}>{recibo.periodo}</Text>
         <View style={[estilos.badge, { backgroundColor: colorBadge }]}>
-          <Text style={[estilos.badgeTexto, { color: textoBadge }]}>{recibo.estado}</Text>
+          <Text style={[estilos.badgeTexto, { color: textoBadge }]} numberOfLines={1}>{recibo.estado}</Text>
         </View>
       </View>
 
@@ -71,9 +71,9 @@ const estilos = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
-  filaSuperior: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  periodo: { fontSize: 15, fontWeight: '700', color: '#334155', fontFamily: 'Inter_700Bold' },
-  badge: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20 },
+  filaSuperior: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 8 },
+  periodo: { fontSize: 15, fontWeight: '700', color: '#334155', fontFamily: 'Inter_700Bold', flex: 1, minWidth: 0 },
+  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, flexShrink: 0 },
   badgeTexto: { fontSize: 12, fontWeight: '800', fontFamily: 'Inter_800ExtraBold' },
   monto: { fontSize: 30, fontWeight: '900', color: '#0F2540', marginBottom: 14, fontFamily: 'Inter_900Black' },
   moneda: { fontSize: 14, fontWeight: '600', color: '#64748B', fontFamily: 'Inter_600SemiBold' },

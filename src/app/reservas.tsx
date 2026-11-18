@@ -271,7 +271,7 @@ export default function PantallaReservas() {
   };
 
   if (!fontsLoaded) {
-    return <ActivityIndicator size="large" color="#0F2540" style={{ flex: 1, justifyContent: 'center' }} />;
+    return null;
   }
 
   return (

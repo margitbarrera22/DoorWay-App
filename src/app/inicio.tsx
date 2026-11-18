@@ -1,6 +1,6 @@
 // src/app/inicio.tsx — Pantalla de Inicio / Dashboard | UX/UI: Margit Barrera & Wilfran Betancourt
 import React from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Image } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFonts, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold, Inter_900Black } from '@expo-google-fonts/inter';
@@ -25,7 +25,7 @@ export default function PantallaInicio() {
   });
 
   if (!fontsLoaded) {
-    return <ActivityIndicator size="large" color="#0F2540" style={{ flex: 1, justifyContent: 'center' }} />;
+    return null;
   }
 
   const esAdmin = usuarioActual?.rol === 'admin' || modoAdmin;
@@ -48,10 +48,10 @@ export default function PantallaInicio() {
   const accesos = [
     {
       titulo: 'Cartera',
-      subtitulo: 'Estado de cuenta y recibos',
+      subtitulo: 'Estado de cuenta y facturas',
       icono: 'wallet',
       color: '#0F2540',
-      ruta: '/',
+      ruta: '/cartera',
     },
     {
       titulo: 'Reservas',
@@ -76,47 +76,41 @@ export default function PantallaInicio() {
         <View style={estilos.headerContent}>
           <Text style={estilos.bienvenida}>Bienvenido/a 👋</Text>
           <Text style={estilos.nombre} numberOfLines={1}>
-            {usuarioActual?.nombre || (modoAdmin ? 'Carlos Mendoza' : 'Doña Martha Gómez')}
+            {usuarioActual?.nombre || (modoAdmin ? 'Carlos Mendoza' : 'Residente')}
           </Text>
           <View style={estilos.badgeRol}>
             <Ionicons
-              name={modoAdmin ? 'shield-checkmark' : 'home'}
-              size={13}
+              name={esAdmin ? 'shield-checkmark' : 'home'}
+              size={12}
               color="#CBD5E1"
-              style={{ marginRight: 5 }}
+              style={{ marginRight: 4 }}
             />
-            <Text style={estilos.badgeRolTexto}>
-              {usuarioActual?.rol === 'admin'
-                ? 'Administración General'
-                : usuarioActual?.apartamento || 'Torre B - Apto 302'}
+            <Text style={estilos.badgeRolTexto} numberOfLines={1}>
+              {esAdmin ? 'Administrador' : (usuarioActual?.apartamento || 'Residente')}
             </Text>
           </View>
         </View>
 
-        {/* Botón de Perfil en el Header (Logo / Avatar) */}
+        {/* Botón de Perfil — Icono de persona claramente identificable */}
         <Pressable
           onPress={() => router.push('/perfil')}
           accessibilityRole="button"
           accessibilityLabel="Abrir mi perfil de usuario"
           style={estilos.btnPerfilHeader}
         >
-          {usuarioActual?.avatarUrl ? (
-            <Image source={{ uri: usuarioActual.avatarUrl }} style={estilos.avatarHeaderImg} />
-          ) : (
-            <Ionicons name="business" size={26} color="#FFF" />
-          )}
-          <View style={estilos.puntoActivo} />
+          <Ionicons name="person-circle" size={28} color="#FFF" />
+          <Text style={estilos.perfilLabel}>Perfil</Text>
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) + 70 }}>
-        {/* RESUMEN: Condicional según el rol (Admin ve Copropiedad global, Residente ve su estado propio) */}
+      <ScrollView contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 20) + 90 }}>
+        {/* RESUMEN: Condicional según el rol */}
         <View style={estilos.seccion}>
           {esAdmin ? (
-            /* Tarjeta Administrador: Resumen de toda la copropiedad */
+            /* Tarjeta Administrador */
             <View style={estilos.cardResumenEjecutivo}>
               <View style={estilos.resumenHeader}>
-                <View>
+                <View style={{ flex: 1 }}>
                   <Text style={estilos.tituloResumen}>Resumen del Conjunto</Text>
                   <Text style={estilos.subtituloResumen}>Balance consolidado de la copropiedad</Text>
                 </View>
@@ -125,7 +119,6 @@ export default function PantallaInicio() {
                 </View>
               </View>
 
-              {/* Fila de Métricas Copropiedad */}
               <View style={estilos.filaMetricas}>
                 <View style={estilos.itemMetrica}>
                   <View style={estilos.iconoMetricaTotal}>
@@ -152,7 +145,6 @@ export default function PantallaInicio() {
                 </View>
               </View>
 
-              {/* Barra de progreso de recaudo global */}
               <View style={estilos.contenedorProgreso}>
                 <View style={estilos.filaTextoProgreso}>
                   <Text style={estilos.textoProgresoLabel}>Efectividad de recaudo</Text>
@@ -164,29 +156,25 @@ export default function PantallaInicio() {
               </View>
             </View>
           ) : (
-            /* Tarjeta Residente: Su propio estado de cuenta */
+            /* Tarjeta Residente */
             <View style={estilos.cardResumenEjecutivo}>
               <View style={estilos.resumenHeader}>
-                <View>
+                <View style={{ flex: 1 }}>
                   <Text style={estilos.tituloResumen}>Mi Estado de Cuenta</Text>
-                  <Text style={estilos.subtituloResumen}>
-                    {usuarioActual?.apartamento || 'Torre B - Apto 302'} · Administración
+                  <Text style={estilos.subtituloResumen} numberOfLines={1}>
+                    {usuarioActual?.apartamento || 'Unidad Residencial'}
                   </Text>
                 </View>
                 <View
                   style={[
                     estilos.badgePeriodo,
-                    {
-                      backgroundColor: veredictoUsuario.permitido ? '#DCFCE7' : '#FEE2E2',
-                    },
+                    { backgroundColor: veredictoUsuario.permitido ? '#DCFCE7' : '#FEE2E2' },
                   ]}
                 >
                   <Text
                     style={[
                       estilos.badgePeriodoTexto,
-                      {
-                        color: veredictoUsuario.permitido ? '#166534' : '#991B1B',
-                      },
+                      { color: veredictoUsuario.permitido ? '#166534' : '#991B1B' },
                     ]}
                   >
                     {veredictoUsuario.permitido ? 'Al Día' : 'En Mora'}
@@ -194,14 +182,13 @@ export default function PantallaInicio() {
                 </View>
               </View>
 
-              {/* Fila de Métricas Personales */}
               <View style={estilos.filaMetricas}>
                 <View style={estilos.itemMetrica}>
                   <View style={estilos.iconoMetricaTotal}>
                     <Ionicons name="receipt-outline" size={18} color="#0F2540" />
                   </View>
                   <Text style={estilos.numeroMetrica}>{misRecibosTotales}</Text>
-                  <Text style={estilos.labelMetrica}>Mis Recibos</Text>
+                  <Text style={estilos.labelMetrica}>Recibos</Text>
                 </View>
 
                 <View style={estilos.itemMetrica}>
@@ -237,7 +224,6 @@ export default function PantallaInicio() {
                 </View>
               </View>
 
-              {/* Mensaje de habilitación de áreas comunes */}
               <View
                 style={{
                   backgroundColor: veredictoUsuario.permitido ? '#F0FDF4' : '#FEF2F2',
@@ -266,7 +252,7 @@ export default function PantallaInicio() {
                   }}
                 >
                   {veredictoUsuario.permitido
-                    ? 'Habilitado: Tienes derecho a reservar el Salón Social y el Kiosco BBQ.'
+                    ? 'Habilitado para reservar Salón Social y Kiosco BBQ.'
                     : veredictoUsuario.motivoBloqueo}
                 </Text>
               </View>
@@ -324,7 +310,7 @@ const estilos = StyleSheet.create({
   },
   headerContent: { flex: 1, paddingRight: 12 },
   bienvenida: { color: '#94A3B8', fontSize: 13, fontWeight: '600', fontFamily: 'Inter_600SemiBold', marginBottom: 4 },
-  nombre: { color: '#FFF', fontSize: 22, fontWeight: '900', fontFamily: 'Inter_900Black', marginBottom: 6 },
+  nombre: { color: '#FFF', fontSize: 20, fontWeight: '900', fontFamily: 'Inter_900Black', marginBottom: 6 },
   badgeRol: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -337,41 +323,25 @@ const estilos = StyleSheet.create({
   badgeRolTexto: { color: '#E2E8F0', fontSize: 12, fontWeight: '600', fontFamily: 'Inter_600SemiBold' },
 
   btnPerfilHeader: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
-    position: 'relative',
+    justifyContent: 'center',
+    minWidth: 52,
   },
-  avatarHeaderImg: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-  },
-  puntoActivo: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#10B981',
-    borderWidth: 2,
-    borderColor: '#0F2540',
+  perfilLabel: {
+    color: '#94A3B8',
+    fontSize: 10,
+    fontWeight: '600',
+    fontFamily: 'Inter_600SemiBold',
+    marginTop: 2,
   },
 
   seccion: { paddingHorizontal: 20, paddingTop: 20 },
   tituloSeccion: { fontSize: 16, fontWeight: '800', color: '#0F2540', marginBottom: 14, fontFamily: 'Inter_800ExtraBold' },
 
-  // Card Resumen Ejecutivo
   cardResumenEjecutivo: {
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    padding: 22,
+    padding: 20,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     elevation: 2,
@@ -387,7 +357,7 @@ const estilos = StyleSheet.create({
     marginBottom: 20,
   },
   tituloResumen: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
     color: '#0F2540',
     fontFamily: 'Inter_800ExtraBold',
@@ -403,6 +373,8 @@ const estilos = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
+    marginLeft: 8,
+    flexShrink: 0,
   },
   badgePeriodoTexto: {
     fontSize: 11,
@@ -413,53 +385,55 @@ const estilos = StyleSheet.create({
 
   filaMetricas: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
     marginBottom: 20,
+    flexWrap: 'wrap',
   },
   itemMetrica: {
     flex: 1,
+    minWidth: '28%',
     backgroundColor: '#F8FAFC',
     borderRadius: 14,
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#F1F5F9',
   },
   iconoMetricaTotal: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#E2E8F0',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   iconoMetricaPagado: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#DCFCE7',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   iconoMetricaMora: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#FEE2E2',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   numeroMetrica: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '900',
     color: '#0F2540',
     fontFamily: 'Inter_900Black',
   },
   labelMetrica: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#64748B',
     fontWeight: '600',
     marginTop: 2,
@@ -508,7 +482,7 @@ const estilos = StyleSheet.create({
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     elevation: 1,

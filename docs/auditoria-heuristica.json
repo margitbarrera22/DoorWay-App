@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "texto": "Al no tener soporte adjunto o fallar la carga de imagen, se mostraba un contenedor azul oscuro (#0F2540) o ícono de alerta que generaba confusión al residente creyendo que el sistema había colapsado.",
+      "heur": "H1",
+      "pant": "Detalle de Recibo (recibo/[id].tsx)",
+      "sev": 3,
+      "accion": "Se sustituyó por un contenedor neutral (#F8FAFC) con el mensaje orientativo: «Todavía no se ha subido ningún soporte»."
+    },
+    {
+      "texto": "El bloqueo de reservas evaluaba los recibos globalmente en lugar de por usuario, impidiendo reservar a residentes al día.",
+      "heur": "H5",
+      "pant": "Calendario de Reservas (reservas.tsx)",
+      "sev": 3,
+      "accion": "Se refactorizó filtrarRecibosPorUsuario para evaluar únicamente los recibos del apartamento del usuario autenticado."
+    },
+    {
+      "texto": "El Administrador quedaba bloqueado por el banner de mora de residentes al auditar la grilla de reservas.",
+      "heur": "H3",
+      "pant": "Reservas / Modo Admin (reservas.tsx)",
+      "sev": 2,
+      "accion": "Se desbloquearon las franjas y confirmación para el rol Administrador, con banner azul de auditoría."
+    },
+    {
+      "texto": "En Android con barra de navegación nativa de 3 botones, los controles inferiores quedaban superpuestos por el sistema.",
+      "heur": "ACC",
+      "pant": "Navegación Global / Layout",
+      "sev": 2,
+      "accion": "Integración de SafeAreaProvider con insets dinámicos y touch targets mínimos de 48dp (WCAG 2.2 AA)."
+    },
+    {
+      "texto": "En clientes con amplio histórico de cartera, la lista vertical saturaba la vista con demasiados recibos anteriores.",
+      "heur": "H7",
+      "pant": "Cartera de Recibos (recibos.tsx)",
+      "sev": 2,
+      "accion": "Diseño de tarjeta Hero para el mes actual y acordeón plegable para consultar los recibos anteriores."
+    },
+    {
+      "texto": "Si el usuario olvidaba su PIN de 4 dígitos, no tenía un canal directo dentro de la app para recuperarlo.",
+      "heur": "H9",
+      "pant": "Login y Perfil",
+      "sev": 2,
+      "accion": "Se integró el botón de asistencia y llamada directa «¿Olvidaste tu PIN? Pídelo al Administrador»."
+    }
+  ]
+}

@@ -50,14 +50,18 @@ export function RecibosProvider({ children, repositorio = repositorioPorDefecto 
   async function cargar() {
     if (peticionEnCurso.current) return;
     peticionEnCurso.current = true;
-    setEstadoVista('cargando');
+    if (recibos.length === 0) {
+      setEstadoVista('cargando');
+    }
     try {
       const lista = await repositorio.obtenerTodos();
       setRecibos(lista);
       setEstadoVista(lista.length === 0 ? 'vacio' : 'conDatos');
     } catch (e: any) {
       setMensajeError(e?.message || 'No pudimos leer tus recibos de administración');
-      setEstadoVista('error');
+      if (recibos.length === 0) {
+        setEstadoVista('error');
+      }
     } finally {
       peticionEnCurso.current = false;
     }
