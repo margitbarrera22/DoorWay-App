@@ -1,132 +1,185 @@
 # 🚪 DoorWay-App — Sistema Integral de Gestión para Condominios
 
-**Equipo:** Condominios App  
+**Institución:** Instituto Universitario de la Paz (UNIPAZ) · Ingeniería Informática VIII Semestre · Desarrollo de Aplicaciones Móviles (DAM)  
+**Equipo:** Condominios App (*Los Diurnos*)  
 **Integrantes:** Michel Daniela Bayona Díaz, Margit Dayanna Barrera Gutiérrez, Wilfran Leonardo Betancourt Ardila, Said Alexander Pacheco Moncada  
-**Tecnología:** Aplicación Móvil Multiplataforma — React Native + Expo (TypeScript, Expo Router)  
-**Arquitectura y Distribución:** Arquitectura Híbrida (Supabase Cloud + SQLite Local) · Patrón MVVM en 4 Capas · Distribución móvil nativa (Expo Go / APK con EAS Build · Presupuesto cero)  
-**ODS:** ODS 11 (Ciudades y comunidades sostenibles) y ODS 16 (Paz, justicia e instituciones sólidas)
+**Stack Tecnológico:** React Native `0.88.1` · Expo SDK `58` · Expo Router · TypeScript · SQLite Local (`expo-sqlite`) · Supabase Cloud (PostgreSQL + Storage) · EAS Build (`.apk`)  
+**Versión Final:** `v1.2.0` (`com.unipaz.doorwayapp`)  
+**ODS Alineados:** ODS 11 (*Ciudades y comunidades sostenibles*) y ODS 16 (*Paz, justicia e instituciones sólidas*)
+
+---
+
+## 📦 Descarga del APK Oficial y Enlaces del Proyecto
+
+| Recurso | Enlace Oficial |
+|---|---|
+| 🤖 **Instalador Android (.apk · v1.2.0)** | [Descargar DoorWay-App (.apk) desde EAS Build](https://expo.dev/artifacts/eas/z7pi28r1p9qzvWzZ69YcdTbgY2WEKfay5QQfP0q9wPY.apk) |
+| 🛠️ **Bitácora de Compilación en la Nube** | [Ver Build ID `d1f4b15e-7cdb-4d49-b4e7-8b30093d88e6` en Expo](https://expo.dev/accounts/wilfranb/projects/doorway-app/builds/d1f4b15e-7cdb-4d49-b4e7-8b30093d88e6) |
+| 📋 **Tablero Scrumban (GitHub Projects)** | [Doorway Tablero](https://github.com/users/margitbarrera22/projects/2) |
+| 📄 **Informe Maestro Completo en PDF (3 Sprints)** | [`docs/Informe_Desarrollo_Completo_DoorWay_App_3_Sprints.pdf`](docs/Informe_Desarrollo_Completo_DoorWay_App_3_Sprints.pdf) |
 
 ---
 
 ## 1. Visión y Objetivo del Producto
 
 ### Visión (Plantilla de Moore)
-**Para** los residentes y administradores de conjuntos residenciales en Barrancabermeja **que** sufren pérdida de trazabilidad financiera, colisiones en la reserva de áreas comunes y falta de seguimiento a sus solicitudes por usar hojas de cálculo aisladas y grupos de WhatsApp, **DoorWay-App** **es una** aplicación móvil multiplataforma desarrollada en React Native y Expo **que** centraliza el control de cartera, la programación de zonas comunes, el anuncio de visitantes y el seguimiento de tickets PQRSD en tiempo real con respaldo offline. **A diferencia de** llevar la contabilidad en Excel, atender quejas por chats informales o exigir la descarga de aplicaciones comerciales pesadas, **nuestro producto** se ejecuta de manera optimizada en teléfonos Android de gama media o baja (360 dp de ancho y 2 GB de RAM), permite capturar y comprimir comprobantes de pago con la cámara del celular (< 300 KB), almacena datos en caché SQLite local para consulta sin conexión y cruza automáticamente el estado de cartera para bloquear reservas a residentes en mora.
+**Para** los residentes y administradores de conjuntos residenciales en Barrancabermeja **que** sufren pérdida de trazabilidad financiera, colisiones en la reserva de áreas comunes y falta de seguimiento a sus solicitudes por depender de hojas de cálculo aisladas y grupos informales de WhatsApp, **DoorWay-App** **es una** aplicación móvil nativa multiplataforma desarrollada con React Native y Expo **que** centraliza la gestión de cartera y facturación electrónica, el calendario de áreas comunes sin colisiones, el registro de residentes y la comunicación comunitaria con respaldo offline. **A diferencia de** llevar la contabilidad en Excel o atender trámites por chats informales, **nuestro producto** funciona fluidamente en teléfonos Android de gama media o baja, comprime comprobantes fotográficos (`< 300 KB`), opera sin conexión desde SQLite local en Modo Avión, aísla estrictamente la información financiera por unidad residencial y cruza en tiempo real el estado de mora para habilitar o bloquear reservas.
 
 ### 🎯 Objetivo del Producto
-> «Que cualquier residente o administrador de un conjunto residencial en Barrancabermeja pueda registrar y validar pagos de administración con foto, reservar un área común sin colisiones o gestionar una PQRSD en menos de 2 minutos desde un teléfono Android de gama media o baja, garantizando trazabilidad financiera y control de morosidad en tiempo real.»
+> «Que cualquier residente o administrador de un conjunto residencial en Barrancabermeja pueda autenticarse, registrar y conciliar pagos de administración con soporte fotográfico, reservar un área común sin colisiones o consultar comunicados y emergencias offline en menos de 2 minutos desde un teléfono móvil, garantizando trazabilidad financiera y control de morosidad en tiempo real.»
 
 ---
 
-## 2. Roles del Equipo (Scrum Team) y Responsabilidades
+## 2. Equipo de Trabajo, Roles Scrumban y Aportes por Sprint
 
-* **Product Owner (Fija todo el semestre):** Michel Daniela Bayona Díaz (`Bayonadi`). *Responsable de maximizar el valor del producto, gestionar el Product Backlog, diseñar e implementar la capa de datos híbrida (Contratos TypeScript, Supabase PostgreSQL/Storage y SQLite local con `expo-sqlite`), y liderar la validación con usuarios reales en Barrancabermeja (`INV-02`).*
-* **Scrum Master (Hito 1 — Cierre Sprint 1):** Margit Dayanna Barrera Gutiérrez (`margitbarrera22`). *Responsable de velar por el marco Scrumban, gestionar el flujo del Doorway Tablero, diseñar el sistema visual accesible WCAG AA (`tema.ts`), programar componentes reutilizables (`TarjetaRecibo`, `EstadoPantalla`), revisar Pull Requests y ejecutar pruebas en dispositivo Android físico.*
-* **Scrum Master (Hito 2 — Inicio Sprint 2) & Developer:** Wilfran Leonardo Betancourt Ardila (`wilfran0707`). *Responsable de la inicialización de arquitectura Expo Router (`TEC-01`), programación de ViewModels y contextos (`RecibosContext`, `ReservasContext`), vistas de detalle, panel de conciliación administrativa (`HU-04`) y calendario de reservas (`HU-05` / `HU-02`).*
-* **Scrum Master (Hito 3) & Developer:** Said Alexander Pacheco Moncada (`Thepache`). *Responsable de la integración con hardware del dispositivo, servicio nativo de cámara y compresión automática (`TEC-04`), subida de comprobantes (`HU-01`), cancelación oportuna de reservas (`HU-06`), sincronización offline (`TEC-05`) y empaquetado APK.*
-* **Interesados (Stakeholders):** Docente de la asignatura DAM y representantes de administración y residentes de propiedad horizontal en Barrancabermeja.
-
----
-
-## 3. Alcance del Producto (Matriz MoSCoW)
-
-*(Nota: Los grupos Must y Should cubren la exigencia de la asignatura: consumo de base de datos relacional en Supabase + persistencia local en SQLite (`expo-sqlite`) + funciones nativas del dispositivo mediante API de cámara (`expo-image-picker`) y compresión automática (`expo-image-manipulator`)).*
-
-| Must (Debe tener — ≤ 60 % del esfuerzo / MVP) | Should (Debería tener) | Could (Podría tener — Valor Agregado) | Won't (Fuera del alcance este semestre) |
+| Integrante | GitHub | Rol Scrum / Scrumban | Responsabilidades y Aportes Reales (Sprints 1, 2 y 3 Final) |
 | :--- | :--- | :--- | :--- |
-| • Autenticación y control de acceso por rol (Residente / Administrador)<br>• Consulta de estado de cuenta y cartera por unidad residencial con los 4 estados de pantalla (`cargando`, `vacio`, `error`, `conDatos`) (`HU-03`)<br>• Captura y carga de comprobantes de pago bancarios desde cámara y galería con compresión < 300 KB (`HU-01` / `TEC-04`)<br>• Panel de conciliación del Administrador para aprobar o rechazar comprobantes (`HU-04`)<br>• Calendario interactivo de reservas de áreas comunes con validación en tiempo real y bloqueo automático a residentes en mora (`HU-02` / `HU-05`)<br>• Persistencia en SQLite local para consulta en Modo Avión sin conexión (`TEC-03` / `TEC-05`) | • Cancelación oportuna de reservas con validación de antelación (> 24 horas) (`HU-06`)<br>• Cartelera virtual de anuncios y directorio telefónico de emergencias con soporte 100 % offline (`HU-08` / `HU-11`)<br>• Radicación, listado y respuesta de tickets PQRSD con fotografía adjunta (`Abierto`, `En Revisión`, `Resuelto`) (`HU-07` / `HU-09` / `HU-12`)<br>• Generación de paquete instalable Android (.apk) vía EAS Build (`TEC-02`) | • Ticket digital de reserva confirmada con envío directo a WhatsApp mediante Menú Compartir (`Linking / Share`)<br>• Modo oscuro en la interfaz de usuario respetando el tema del sistema<br>• Filtros rápidos de búsqueda en cartera y PQRSD | • Publicación en tiendas comerciales (Google Play Store o Apple App Store)<br>• Pasarela de pagos en línea integrada con débito bancario automático (PSE / cobro con tarjetas)<br>• Integración con hardware físico en portería (sensores vehiculares, Bluetooth, NFC o talanqueras)<br>• Chat de mensajería instantánea abierta entre vecinos (se prioriza PQRSD formal) |
-
-### 🚫 Lista explícita «Fuera del Alcance»
-1. **Tiendas comerciales de aplicaciones (Play Store / App Store):** Por decisión tecnológica y presupuesto cero, durante el semestre académico la aplicación se distribuye e instala directamente mediante Expo Go y paquetes de prueba APK generados con EAS Build.
-2. **Pagos electrónicos en vivo (PSE):** El módulo financiero registra y audita pagos mediante la captura fotográfica del soporte bancario; no procesa dinero real ni conecta con pasarelas bancarias.
-3. **Reservas en modo Offline:** Dado que el sistema debe evitar colisiones de horario y verificar al instante que el residente no tenga deudas activas, la reserva requiere validación centralizada en Supabase y no permite confirmar turnos sin conexión a internet.
-4. **Hardware de control de acceso:** El módulo de zonas comunes y parqueaderos gestiona cupos y anuncios desde el software, sin conexión física a lectores NFC o sensores vehiculares.
+| **Michel Daniela Bayona Díaz** | `Bayonadi` | **Product Owner (Fija todo el semestre)** & Backend / Persistencia Híbrida | • **Sprint 1:** Diseño de entidades (`modelos.ts`) y contratos (`contratos.ts`), tablas PostgreSQL y bucket `soportes` en Supabase, motor `dbLocalSqlite.ts`, `RepositorioRecibos.ts` y validación con usuarios reales (`INV-02 #18`).<br>• **Sprint 2:** Reglas puras en `reglasNegocio.ts` (`evaluarDerechoAReservar`, `puedeCancelarCon24h`), `RepositorioReservas.ts` con captura de colisión `UNIQUE (23505)`, directorio de emergencias de Barrancabermeja en SQLite y pruebas unitarias (`reglasNegocio.test.ts`).<br>• **Sprint 3:** Subida binaria real al bucket `soportes`, creación automática de recibo inicial por pagar al registrarse un residente nuevo (`fcf4707`) y validación obligatoria de comprobante. |
+| **Margit Dayanna Barrera Gutiérrez** | `margitbarrera22` | **Scrum Master Oficial (Hito 1 y Cierre)** & UX/UI Accesible WCAG 2.2 AA | • **Sprint 1:** Prototipos en Figma, sistema de diseño `src/theme/tema.ts`, componentes `TarjetaRecibo.tsx` y `EstadoPantalla.tsx` (≥ 48 dp), gestión del *Doorway Tablero* y Code Review.<br>• **Sprint 2:** Componentes `BannerMora.tsx`, `SelectorBloques.tsx`, `ModalTicketReserva.tsx` y pantalla `comunidad.tsx` (`HU-08` y `HU-11`).<br>• **Sprint 3:** Módulo dedicado de facturación `src/app/cartera.tsx` (`dfae23c`), `ModalPrivacidadLey1581.tsx`, factura electrónica DIAN y visor en `recibo/[id].tsx`, más Auditoría Heurística de Nielsen y prueba SUS (**84.5/100 · Grado A**). |
+| **Wilfran Leonardo Betancourt Ardila** | `wilfran0707` | **Developer Principal Frontend / ViewModels**, Co-Scrum Master (Hito 2) & Líder APK | • **Sprint 1:** Arquitectura Expo Router (`TEC-01 #13`, `_layout.tsx`), `RecibosContext.tsx` (4 estados + cerrojo `useRef`), `index.tsx` (`HU-03`) y conciliación administrativa en `recibo/[id].tsx` (`HU-04`).<br>• **Sprint 2:** `ReservasContext.tsx`, pantalla `reservas.tsx` (`HU-05` / `HU-02`) y pruebas de campo en celular físico (Online y Modo Avión).<br>• **Sprint 3:** Unificación visual, `AuthContext.tsx`, dashboard por rol `inicio.tsx`, `perfil.tsx`, `filtrarRecibosPorUsuario()`, acordeón de meses anteriores en cartera admin, `SafeAreaInsets` para barra de 3 botones, carga `0 ms` en avisos, ayuda PIN olvidado, fix crash Android y compilación del `.apk` en EAS Build. |
+| **Said Alexander Pacheco Moncada** | `Thepache` | **Developer de Dispositivo, Servicios Nativos** & Co-Scrum Master (Hito 3) | • **Sprint 1:** Servicio nativo `ServicioCamaraExpo.ts` con permisos Android y compresión JPEG al 60 % (`< 300 KB`, `TEC-04 #16`), `useSubirComprobante.ts` y `recibo/subir.tsx` (`HU-01 #1`).<br>• **Sprint 2:** `compartirTicketWhatsApp.ts` (API `Share`), `useCancelarReserva.ts` (`> 24h`, `HU-06 #6`) y sincronizador `RepositorioComunidadHibrido.ts` (`TEC-05 #17`).<br>• **Sprint 3:** Configuración de empaquetado nativo en `eas.json`/`app.json`, hook `useLoginFormulario.ts` y validación de cámara, almacenamiento y modo offline sobre el APK. |
 
 ---
 
-## 4. Arquitectura del Sistema (Patrón MVVM en 4 Capas)
+## 3. Alcance Final del Producto (Matriz MoSCoW)
 
-El proyecto aplica separación estricta de responsabilidades (ver detalle completo en `docs/arquitectura-sprint1.md`):
-
-* **1. Capa de Presentación (`src/app/` y `src/components/`):** Pantallas JSX, navegación con Expo Router, tema accesible WCAG AA (`src/theme/tema.ts`) y componentes con áreas de toque mínimas de 48x48 dp.
-* **2. Capa de ViewModels (`src/hooks/`):** Gestión de estado (`RecibosContext`, `useSubirComprobante`), manejo explícito de los 4 estados de vista (`cargando`, `vacio`, `error`, `conDatos`), cerrojo anti-doble toque (`peticionEnCurso`) y validación de formularios sin pérdida de datos digitados.
-* **3. Capa de Dominio (`src/domain/`):** Entidades TypeScript puras (`modelos.ts`) y reglas de negocio (`tieneMoraActiva`, `puedeReservar`, `puedeCancelarCon24h`) libres de dependencias externas.
-* **4. Capa de Datos (`src/data/`):** Contratos e interfaces (`contratos.ts`), persistencia local en SQLite (`dbLocalSqlite.ts`), repositorio híbrido (`RepositorioRecibos.ts`) y servicio nativo de cámara/compresión (`ServicioCamaraExpo.ts`).
-
----
-
-## 5. Definición del Flujo de Trabajo (Kanban) y Calidad (DoD)
-
-### Políticas explícitas por columna
-| Columna | Política de Entrada (¿Qué debe cumplir la tarjeta para entrar aquí?) | Límite WIP |
-| :--- | :--- | :---: |
-| **Backlog** | Cualquier elemento con título claro. La Product Owner (Daniela Bayona) decide su orden según valor y dependencias. | — |
-| **Listo** | Cumple criterios INVEST, tiene criterios de aceptación verificables en formato **Dado / Cuando / Entonces**, puntos estimados y el equipo la entiende. | 5 |
-| **En desarrollo** | Un Developer se la autoasigna y crea su rama en Git (`feat/hu-XX-descripcion`). Máximo 1 tarjeta activa por integrante. | 4 |
-| **En revisión** | Existe un Pull Request (PR) abierto que enlaza el issue (`Closes #N`) sin errores de compilación (`npx tsc --noEmit`). | 2 |
-| **En dispositivo** | PR revisado y aprobado por otro compañero; código fusionado en `main` y probado en un teléfono Android físico real mediante Expo Go / APK. | 2 |
-| **Hecho** | Cumple íntegramente la Definición de Terminado (DoD), capturas del celular y de base de datos adjuntas en el issue y PR fusionado en `main`. | — |
-
-### ✅ Definición de Terminado (DoD) Unificada
-Ningún elemento pasa a la columna `Hecho` a menos que cumpla:
-1. Criterios de aceptación verificables redactados en formato **Dado / Cuando / Entonces** y boceto correspondiente en **Figma**.
-2. Ingreso a `main` mediante Pull Request revisado y aprobado por otro integrante, sin errores de compilación TypeScript.
-3. Implementación de los 4 estados de pantalla (`cargando`, `vacio`, `error`, `conDatos`), botones accesibles (≥ 48 dp) y cerrojo anti-doble clic.
-4. Prueba verificada en un dispositivo Android físico real (tanto con red activa hacia Supabase como en **Modo Avión ✈️** leyendo desde `expo-sqlite`) con capturas de evidencia en el issue.
-5. Validación con usuarios reales en Barrancabermeja documentada por la Product Owner (`INV-02 #18`).
+| Categoría | Funcionalidades Implementadas |
+| :--- | :--- |
+| **Must (Debe tener)** | • Autenticación híbrida real por rol (Administrador único y Residentes) + Registro exclusivo para nuevos clientes en Supabase y SQLite (`AuthContext`, `RepositorioAuth`).<br>• Aviso de Privacidad Ley 1581 de 2012 persistido localmente (`ModalPrivacidadLey1581.tsx`).<br>• Consulta de cartera por unidad residencial con Tarjeta Hero del mes actual, desglose de factura electrónica (`FE-2026-...`), los 4 estados de vista y lectura en Modo Avión (`HU-03`).<br>• Captura y carga de comprobantes bancarios desde cámara/galería con compresión `< 300 KB` y subida binaria al bucket `soportes` de Supabase (`HU-01`, `TEC-04`).<br>• Panel de conciliación administrativa con visor de voucher y acordeón histórico para meses anteriores (`HU-04`).<br>• Calendario interactivo de áreas comunes con concurrencia en tiempo real (`UNIQUE 23505`) y bloqueo automático individual por mora financiera (`HU-02`, `HU-05`). |
+| **Should (Debería tener)** | • Cancelación oportuna de reservas con validación de antelación mayor a 24 horas (`HU-06`).<br>• Cartelera virtual de anuncios (carga instantánea `0 ms` *Cache-First*) + Switch de notificaciones + Directorio de emergencias 24h de Barrancabermeja 100 % offline (`HU-08`, `HU-11`, `TEC-05`).<br>• Perfil de usuario con cambio de foto de avatar, cambio de PIN y asistencia por olvido de PIN.<br>• Generación de paquete instalable Android (`.apk`) vía EAS Build (`com.unipaz.doorwayapp`). |
+| **Could (Valor Agregado)** | • Ticket digital de reserva confirmada con envío directo a WhatsApp mediante menú nativo `Share`.<br>• Dashboard ejecutivo diferenciado: *Resumen del Conjunto* exclusivo para el Administrador y *Mi Estado de Cuenta* para el Residente (`inicio.tsx`).<br>• Adaptación ergonómica a dispositivos Android con barra de navegación de 3 botones (`SafeAreaProvider`) y teclado adaptativo (`softwareKeyboardLayoutMode: "pan"`). |
+| **Won't (Fuera del Alcance)** | • Publicación en Google Play Store / Apple App Store (distribución directa gratuita vía `.apk` de EAS Build y Expo Go).<br>• Pasarela de pagos en línea con débito bancario real (PSE).<br>• Integración física con hardware de portería (NFC, Bluetooth, biometría o talanqueras). |
 
 ---
 
-## 6. Estado de Sprints y Hoja de Ruta
+## 4. Arquitectura en 4 Capas (MVVM con Contratos) y Estructura del Repositorio
 
-### ✅ Sprint 1 (Semana 1 — Completado al 100 %): Cartera, Conciliación y Núcleo Híbrido
-* **Objetivo alcanzado:** Implementar y validar de extremo a extremo el módulo financiero de cartera con persistencia híbrida (Supabase + SQLite local), captura fotográfica comprimida y conciliación administrativa en teléfonos Android físicos.
-* **Entregables finalizados en la columna «Hecho»:**
-  * `TEC-01 (#13)`: Inicialización del proyecto React Native + Expo Router, configuración de TypeScript y estructura MVVM en 4 capas.
-  * `TEC-03 (#15)`: Creación de esquema relacional en Supabase PostgreSQL, bucket `soportes`, base de datos local `expo-sqlite` (`recibos_cache`), contratos (`contratos.ts`) y `RepositorioRecibosHibrido`.
-  * `TEC-04 (#16)`: Implementación de `ServicioCamaraExpo.ts` con permisos en Android, alternativa de galería y compresión JPEG al 60 % (< 300 KB).
-  * `HU-03 (#3)`: Pantalla de estado de cuenta con los 4 estados visuales, tarjetas accesibles (`TarjetaRecibo.tsx`), navegación dinámica a `/recibo/[id]` y lectura offline en Modo Avión.
-  * `HU-01 (#1)`: Flujo de subida de comprobante de pago con previsualización y validación de campos faltantes sin borrar lo ya digitado.
-  * `HU-04 (#4)`: Panel de conciliación del Administrador con aprobación/rechazo en tiempo real reflejado en Supabase y SQLite.
-  * `INV-02 (#18)`: Ejecución y documentación de entrevistas con usuarios reales (administrador y residente) en Barrancabermeja.
+El código está organizado bajo separación estricta de responsabilidades para mantener las reglas financieras independientes de React Native y permitir la conmutación transparente entre **Supabase Cloud** y **SQLite Local**:
+
+```text
+DoorWay-App/
+├── app.json                                 # Configuración Expo SDK 58, ícono adaptativo, teclado "pan" y projectId EAS
+├── eas.json                                 # Perfiles de compilación Android (.apk en preview y production)
+├── package.json                             # Dependencias SDK 58 y script "build:apk"
+├── docs/                                    # Documentación técnica, auditorías y evidencias
+│   ├── Informe_Desarrollo_Completo_DoorWay_App_3_Sprints.pdf  # Informe maestro consolidado (8 páginas)
+│   ├── arquitectura-sprint1.md              # Actores, eventos (#1-#8) y arquitectura base Sprint 1
+│   ├── arquitectura-sprint2.md              # Actores, eventos y criterios Gherkin Sprint 2
+│   ├── arquitectura-sprint3-final.md        # Arquitectura final, tablas SQLite/Supabase, SUS y ficha APK
+│   ├── auditoria-ux-sprint2.md              # Auditoría Heurística Nielsen (6 hallazgos) + SUS 84.5/100
+│   ├── auditoria-heuristica.json            # Matriz estructurada de hallazgos UX/A11y
+│   └── examen-sprint1.md                    # Entregable técnico de validación Sprint 1
+└── src/
+    ├── domain/                              # CAPA 3 · DOMINIO PURO (TypeScript sin dependencias UI)
+    │   ├── modelos.ts                       # Entidades (Recibo, Reserva, Anuncio, UsuarioSesion) y semillas multi-cliente
+    │   ├── reglasNegocio.ts                 # evaluarDerechoAReservar, puedeCancelarCon24h y filtrarRecibosPorUsuario
+    │   └── reglasNegocio.test.ts            # Pruebas unitarias de reglas de mora y cancelación >24h
+    ├── data/                                # CAPA 4 · DATOS HÍBRIDOS Y SERVICIOS NATIVOS
+    │   ├── contratos.ts                     # Interfaces IRecibosRepository, IReservasRepository, IComunidadRepository, IAuthRepository, IServicioCamara
+    │   ├── dbLocalSqlite.ts                 # Base SQLite local (doorway_local.db): 7 tablas con migraciones autosanables
+    │   ├── RepositorioRecibos.ts            # Sincronización SQLite <-> Supabase + subida binaria a bucket "soportes"
+    │   ├── RepositorioAuth.ts               # Login híbrido, registro con recibo inicial automático, cambio PIN/Avatar
+    │   ├── RepositorioReservas.ts           # Consulta y registro en Supabase con captura de colisiones UNIQUE (23505)
+    │   ├── RepositorioComunidadHibrido.ts   # Descarga de comunicados Supabase -> SQLite y lectura offline
+    │   ├── ServicioCamaraExpo.ts            # Captura de cámara/galería y compresión JPEG al 60 % (< 300 KB)
+    │   └── compartirTicketWhatsApp.ts       # Envío nativo del ticket digital de reserva por Share/WhatsApp
+    ├── hooks/                               # CAPA 2 · VIEWMODELS Y CONTEXTOS REACTIVOS
+    │   ├── AuthContext.tsx                  # Estado global de sesión SQLite, registro, avatar, PIN y Ley 1581
+    │   ├── RecibosContext.tsx               # 4 estados de vista (cargando, vacio, error, conDatos) + cerrojo useRef
+    │   ├── ReservasContext.tsx              # Estado reactivo de calendario y reservas
+    │   ├── useSubirComprobante.ts           # Validación de referencia (>= 4 chars) y foto sin perder datos digitados
+    │   ├── useCancelarReserva.ts            # Hook de cancelación validando regla > 24 horas
+    │   └── useLoginFormulario.ts            # Estado y validación del formulario de acceso
+    ├── theme/
+    │   └── tema.ts                          # Sistema de diseño accesible WCAG 2.2 AA/AAA (#0F2540, #0D9488)
+    ├── components/                          # CAPA 1A · COMPONENTES UI REUTILIZABLES (>= 48 dp)
+    │   ├── BarraNavegacionModulos.tsx       # Barra inferior de 5 pestañas con useSafeAreaInsets (3 botones Android)
+    │   ├── TarjetaRecibo.tsx                # Tarjeta de recibo con badge semáforo y soporte TalkBack
+    │   ├── EstadoPantalla.tsx               # Estados visuales de cargando, vacío y error con reintento
+    │   ├── BannerMora.tsx                   # Alerta roja persistente con redirección directa a Cartera
+    │   ├── SelectorBloques.tsx              # Franjas horarias cromáticas (verde libre, rojo ocupado, azul seleccionado)
+    │   ├── ModalTicketReserva.tsx           # Comprobante digital tras reserva confirmada + botón WhatsApp
+    │   └── ModalPrivacidadLey1581.tsx       # Aviso Ley 1581 de 2012 con rol nativo accessibilityRole="alert"
+    └── app/                                 # CAPA 1B · PANTALLAS Y RUTAS EXPO ROUTER
+        ├── _layout.tsx                      # SafeAreaProvider, AuthProvider, RecibosProvider y NavegacionProtegida
+        ├── index.tsx                        # Punto de entrada que redirige limpiamente a inicio.tsx
+        ├── login.tsx                        # Login corporativo, Registro de Cliente, teclado adaptativo y Ayuda PIN
+        ├── inicio.tsx                       # Dashboard condicional: Resumen del Conjunto (Admin) vs Mi Estado (Residente)
+        ├── cartera.tsx                      # Módulo financiero multi-cliente con acordeón de meses anteriores y Tarjeta Hero
+        ├── reservas.tsx                     # Calendario interactivo, concurrencia en tiempo real y "Mis reservas" aislado
+        ├── comunidad.tsx                    # Avisos Cache-First 0 ms, switch notificaciones y directorio 24h offline
+        ├── perfil.tsx                       # Cambio de foto/avatar, cambio de PIN, ayuda olvido de PIN y cerrar sesión
+        └── recibo/
+            ├── [id].tsx                     # Factura electrónica DIAN (FE-2026), visor de soporte y conciliación Admin
+            └── subir.tsx                    # Captura/selección de voucher obligatorio y referencia bancaria
+```
 
 ---
 
-### 🚀 Sprint 2 (Semana 2 — Jueves 5 al Miércoles 11 de Noviembre): Áreas Comunes, Bloqueo por Mora y Comunidad Offline
+## 5. Evolución Cronológica por Sprints (Sprints 1, 2 y 3 Final)
 
-* **Objetivo del Sprint 2:** Habilitar la programación de áreas comunes sin colisiones de horario cruzando en vivo el estado de cartera para bloquear reservas a residentes en mora, permitir cancelaciones oportunas (> 24 h) y garantizar acceso offline permanente a la cartelera de anuncios y al directorio de emergencias de Barrancabermeja.
+### ✅ Sprint 1 (Semana 1: 29 Oct – 4 Nov 2026) — Cimientos MVVM y Cartera Base
+* **Logro:** Se implementó el núcleo financiero híbrido (`TEC-01`, `TEC-03`, `TEC-04`, `HU-03`, `HU-01`, `HU-04`, `INV-02`).
+* **Aspectos clave:** Esquema relacional en Supabase, caché local `expo-sqlite` para Modo Avión, compresión fotográfica al 60 % JPEG (`~180 KB`), cerrojo anti-doble toque con `useRef`, validación sin pérdida de datos digitados y panel de conciliación administrativa.
 
-#### 📌 Alcance Base del Sprint 2
-* **HU-05 (#5):** Consulta de fechas disponibles/ocupadas en Supabase y reserva de áreas comunes (Salón Social y Kiosco BBQ).
-* **HU-02 (#2):** Regla de negocio pura (`tieneMoraActiva` / `puedeReservar`) que bloquea automáticamente la reserva si el residente registra al menos un recibo en estado `'En mora'`.
-* **HU-06 (#6):** Cancelación oportuna de reservas validando una antelación mínima mayor a 24 horas y liberando el turno en Supabase.
-* **HU-08 (#8) y HU-11 (#11):** Cartelera digital de anuncios de la administración y Directorio telefónico de emergencias con soporte offline en SQLite.
-* **TEC-05 (#17):** Motor de sincronización híbrida *offline-first* para lectura local inmediata sin conexión a internet.
+### ✅ Sprint 2 (Semana 2: 5 Nov – 11 Nov 2026) — Reservas sin Colisiones y Comunidad Offline-First
+* **Logro:** Se completaron todos los flujos de zonas comunes y comunidad sin conexión (`HU-02`, `HU-05`, `HU-06`, `HU-08`, `HU-11`, `TEC-05`).
+* **Aspectos clave:** Motor de reglas puras en `reglasNegocio.ts`, captura atómica de colisiones `UNIQUE (23505)` en Supabase, calendario cromático (`SelectorBloques.tsx`), ticket digital compartible por WhatsApp, cancelación con regla `> 24h`, directorio telefónico de Barrancabermeja en SQLite y pruebas unitarias.
 
-#### 🌟 Valor Agregado y Estándar de Nivel Superior para el Sprint 2
-Para garantizar una experiencia de producto comercial, robusta y visualmente sobresaliente durante la sustentación, el equipo incorpora tres pilares técnicos adicionales en esta iteración:
+### ✅ Sprint 3 · Sprint Final (Semana 3: 12 Nov – 18 Nov 2026) — Autenticación Real, Aislamiento, Auditoría UX y APK
+* **Autenticación y Registro en BD (`aecfe3b`, `fcf4707`):** Login corporativo con un único Administrador y registro exclusivo para clientes nuevos guardados en Supabase y SQLite, generando automáticamente su primer recibo pendiente por pagar y exigiendo soporte obligatorio al reportar el pago.
+* **Cartera Multi-Cliente con Acordeón (`8d42b2c`, `dfae23c`, `2a070de`):** Se sembraron 5 clientes reales de prueba, se desacopló `cartera.tsx` y se agregó un acordeón colapsable en la vista del Administrador para minimizar recibos de meses pasados (como los 7 meses de Doña Martha) debajo del mes actual. En `inicio.tsx`, el *Resumen del Conjunto* quedó restringido exclusivamente al Administrador.
+* **Aislamiento de Datos y Concurrencia Real (`006b1b7`, `2a070de`):** Se implementó `filtrarRecibosPorUsuario()` para que la mora de un vecino no bloquee a residentes al día, se aisló la sección *«Mis reservas»* a la sesión activa y se validó la concurrencia contra Supabase en tiempo real para que el primer cliente en confirmar se quede con el turno.
+* **Rendimiento 0 ms, Ergonomía Móvil y Fix Android (`8d42b2c`, `b6f2c1c`):** Carga instantánea *Cache-First* en `comunidad.tsx`, pantalla `perfil.tsx` para foto/PIN, ayuda por olvido de PIN en Login y Perfil, corrección del crash nativo `alertdialog` &rarr; `alert` en `ModalPrivacidadLey1581.tsx`, `SafeAreaProvider` para evitar recortes con la barra Android de 3 botones y teclado adaptativo `pan`.
+* **Auditoría UX/SUS y Empaquetado Oficial APK (`fab15f8`):** Validación heurística (6 hallazgos resueltos), contraste WCAG 2.2 AA/AAA (`13.9:1`), puntuación **SUS de 84.5 / 100 (Grado A)** y generación exitosa del instalador `.apk` vía **EAS Build**.
 
-1. **A. Experiencia Visual y Feedback de Usuario (UI/UX):**
-   * **Calendario interactivo por código de colores:** Reemplazo de selectores planos por un componente visual intuitivo con estados cromáticos accesibles (verde para turnos disponibles, rojo/bloqueado para horarios ocupados y gris para fechas pasadas).
-   * **Feedback inmediato y Ticket Digital tras reservar:** Al confirmar un turno, se despliega un modal accesible de éxito en formato de ticket digital con acción directa de **«Compartir comprobante por WhatsApp»** (`Linking` / `Share`), facilitando el aviso inmediato a portería.
-   * **Banner persistente de mora con acción directa:** Si el residente presenta mora activa, en lugar de un texto de error simple se renderiza una tarjeta de advertencia destacada (`BannerMora.tsx`): *"Tienes 1 recibo en mora · Ponerse al día aquí"*, con navegación directa hacia su estado de cuenta en Cartera.
-2. **B. Robustez Técnica y Concurrencia (Backend / Base de Datos):**
-   * **Validación de colisiones a doble nivel:** Además de la restricción `UNIQUE(area_comun, fecha, bloque_horario)` en PostgreSQL, el ViewModel valida la disponibilidad antes del envío y captura cualquier colisión concurrente entre vecinos devolviendo un mensaje claro: *"Este horario acaba de ser tomado por otro residente"*.
-   * **Datos Semilla Contextualizados en SQLite:** La tabla local `directorio_emergencias` se inicializa con contactos reales y verificables de Barrancabermeja (Policía Cuadrante, Bomberos Voluntarios, Gasoriente / ESSA y Portería Barrio Nueva Esperanza), asegurando utilidad real desde el primer arranque sin red.
-3. **C. Flujo de Demostración en Vivo sin Conexión (Offline-First Demo Flow):**
-   * Preparación de un flujo de prueba auditable en teléfono Android físico: activación de **Modo Avión ✈️**, apertura inmediata de Cartelera (`HU-08`) y Directorio (`HU-11`) cargando al 100 % desde `expo-sqlite`, marcación telefónica directa y reconexión automática transparente con Supabase.
+---
 
-#### 📋 Cronograma y Matriz de Ejecución de la Semana 2
+## 6. Usuarios y Escenarios de Prueba (Base Local y Supabase)
 
-| Días y Fechas | Integrante | Rol | Tareas Técnicas y Mejoras de Nivel Superior | Entregable en GitHub |
-| :--- | :--- | :--- | :--- | :--- |
-| **Días 8 y 9**<br>*(Jue 5 – Vie 6 Nov)* | **Daniela Bayona** | PO & Backend | • Programar en `src/domain/reglasNegocio.ts` las funciones puras `puedeReservar(recibos)` y `puedeCancelarCon24h()`.<br>• Crear `src/data/RepositorioReservas.ts` en Supabase con manejo atómico de excepciones ante colisiones `UNIQUE(area_comun, fecha, bloque_horario)`. | Contratos y repositorio de reservas en `main` con control de concurrencia. |
-| **Días 8 y 9**<br>*(Jue 5 – Vie 6 Nov)* | **Margit Barrera** | UX/UI & Componentes | • Diseñar las tarjetas de Áreas Comunes y el **calendario visual interactivo** (verde libre, rojo ocupado, gris pasado).<br>• Crear el componente `BannerMora.tsx` con botón de redirección a Cartera y el modal de **Ticket Digital** de reserva. | PR de componentes visuales de reservas con contraste WCAG AA y áreas ≥ 48 dp. |
-| **Días 8 y 9**<br>*(Jue 5 – Vie 6 Nov)* | **Wilfran Betancourt** | Dev Frontend & SM | • Crear `src/hooks/ReservasContext.tsx` validando disponibilidad previa.<br>• Programar la pantalla `src/app/(tabs)/reservas.tsx` integrando las franjas horarias de Supabase (`HU-05`). | PR de `HU-05 (#5)` abierto y enlazado al tablero. |
-| **Días 8 y 9**<br>*(Jue 5 – Vie 6 Nov)* | **Said Pacheco** | Dev Dispositivo | • Programar la lógica de cancelación oportuna con validación de > 24 h de anticipación (`HU-06`) liberando el turno en Supabase.<br>• Integrar el botón de **«Compartir comprobante por WhatsApp»** (`Linking / Share`) en el ticket de reserva confirmada. | PR de `HU-06 (#6)` con función de compartir integrada. |
-| **Días 10 y 11**<br>*(Sáb 7 – Dom 8 Nov)* | **Daniela Bayona** | PO & Backend | • Ampliar `src/data/dbLocalSqlite.ts` creando las tablas `anuncios_cache` y `directorio_emergencias`.<br>• Insertar datos semilla reales de Barrancabermeja (Policía, Bomberos, Portería Nueva Esperanza). | Persistencia SQLite para comunidad lista y probada. |
-| **Días 10 y 11**<br>*(Sáb 7 – Dom 8 Nov)* | **Margit Barrera** | UX/UI & Componentes | • Maquetar la pantalla `src/app/(tabs)/comunidad.tsx` mostrando la Cartelera de anuncios (`HU-08`) y las tarjetas de llamada rápida a Portería y Emergencias (`HU-11`). | PR de vistas de Comunidad (`HU-08 #8` y `HU-11 #11`). |
-| **Días 10 y 11**<br>*(Sáb 7 – Dom 8 Nov)* | **Wilfran Betancourt** | Dev Frontend & SM | • Implementar el cruce en vivo de `HU-02`: si el usuario tiene 1 recibo `'En mora'`, bloquea la confirmación en el calendario, despliega el `BannerMora` y redirige a Cartera. | Prueba cruzada con Daniela: cambio a `'En mora'` en Supabase bloquea reserva al instante. |
-| **Días 10 y 11**<br>*(Sáb 7 – Dom 8 Nov)* | **Said Pacheco** | Dev Dispositivo | • Conectar el sincronizador offline (`TEC-05 #17`): con red descarga anuncios de Supabase a SQLite; sin red sirve Cartelera y Directorio al 100 % desde SQLite local. | PR de `TEC-05 (#17)` fusionado y verificado. |
-| **Días 12 a 14**<br>*(Lun 9 – Mié 11 Nov)* | **Equipo Completo** | Cierre y QA en Dispositivo | • **Daniela:** Pruebas unitarias de dominio (`reglasNegocio.test.ts`).<br>• **Margit y Said:** Ejecución del *Demo Flow* en Android físico en **Modo Avión ✈️** (`HU-03`, `HU-08`, `HU-11`).<br>• **Wilfran:** Verificación de colisiones entre dos vecinos intentando tomar el mismo turno. | **Entregable Semana 2 Listo:** Tarjetas `HU-05`, `HU-02`, `HU-06`, `HU-08`, `HU-11` y `TEC-05` en columna «Hecho». |
+| Usuario | Rol | Correo / Alias de Acceso | Apartamento | PIN | Estado Inicial Semilla |
+|---|---|---|---|---|---|
+| **Carlos Mendoza** | Administrador | `admin@doorway.com` / `admin` | Administración General | `1234` | Acceso total (Resumen del Conjunto, Conciliación y Auditoría) |
+| **Doña Martha Gómez** | Residente | `martha@doorway.com` / `302` | Torre B - Apto 302 | `3020` | Nov 2026 `En mora` + 6 meses históricos `Pagado` |
+| **Andrés Felipe Ruiz** | Residente | `andres.ruiz@doorway.com` / `101` | Torre A - Apto 101 | `1010` | Nov 2026 `En mora` (listo para prueba de pago) |
+| **Claudia Patricia Morales** | Residente | `claudia.morales@doorway.com` / `204` | Torre A - Apto 204 | `2040` | Nov 2026 `En validación` (soporte pendiente de aprobar) |
+| **Javier Eduardo Castro** | Residente | `javier.castro@doorway.com` / `405` | Torre B - Apto 405 | `4050` | Nov 2026 `En mora` (bloqueo de reservas activo `HU-02`) |
+| **Sandra Milena Ortiz** | Residente | `sandra.ortiz@doorway.com` / `102` | Torre C - Apto 102 | `1020` | Nov 2026 `Pagado` (reservas habilitadas) |
 
+---
+
+## 7. Guía de Ejecución Local, Validación y Generación de APK
+
+### Requisitos Previos
+* Node.js 18+ (recomendado v22 LTS) y npm.
+* App **Expo Go** en Android/iOS (para desarrollo) o descarga directa del **APK** generado en Android.
+
+### Comandos Principales
+
+```bash
+# 1. Clonar e instalar dependencias
+git clone https://github.com/margitbarrera22/DoorWay-App.git
+cd DoorWay-App
+npm install
+
+# 2. Verificar compilación TypeScript estricta (0 errores)
+npx tsc --noEmit
+
+# 3. Iniciar servidor de desarrollo (modo túnel recomendado para evitar bloqueos de firewall/VPN)
+npx expo start -c --tunnel
+
+# 4. Generar nuevo instalador Android (.apk) en la nube con EAS Build
+npm run build:apk
+```
+
+---
+
+## 8. Índice de Documentación en `docs/`
+
+* [`docs/Informe_Desarrollo_Completo_DoorWay_App_3_Sprints.pdf`](docs/Informe_Desarrollo_Completo_DoorWay_App_3_Sprints.pdf) — Informe maestro completo en PDF (8 páginas) con los 3 Sprints, roles y radiografía del repositorio.
+* [`docs/arquitectura-sprint1.md`](docs/arquitectura-sprint1.md) — Actores, eventos de dominio (#1–#8) y arquitectura MVVM del Sprint 1.
+* [`docs/arquitectura-sprint2.md`](docs/arquitectura-sprint2.md) — Actores, eventos, criterios Gherkin y pruebas del Sprint 2.
+* [`docs/arquitectura-sprint3-final.md`](docs/arquitectura-sprint3-final.md) — Arquitectura consolidada del Sprint 3 Final, tablas SQLite/Supabase, criterios Gherkin finales y ficha de compilación APK.
+* [`docs/auditoria-ux-sprint2.md`](docs/auditoria-ux-sprint2.md) — Auditoría Heurística de Nielsen, contraste WCAG 2.2 AA/AAA y prueba SUS (84.5/100).
+* [`docs/auditoria-heuristica.json`](docs/auditoria-heuristica.json) — Datos estructurados de la auditoría heurística.
+* [`docs/examen-sprint1.md`](docs/examen-sprint1.md) — Evidencia técnica de validación de la historia HU-03 y plan de entrevistas (`INV-02`).
